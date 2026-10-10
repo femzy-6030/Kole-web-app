@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@theme {
+    --font-lato: "Lato", sans-serif;
+    --color-brand-primary: #006B2D;
+    --color-brand-accent: #00D7E8;
+    --color-brand-hover: #005423;
+    --color-brand-surface: #F8FAFC;
+}
