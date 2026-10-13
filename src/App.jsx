@@ -456,9 +456,8 @@ export default function App() {
             )}
 
             {customerActiveTab === 'payments' && (
-                <PaymentCheckoutView pickupRequest={{ title: 'Household Subscription Plan' }} onPaymentSuccess={() => setCustomerActiveTab('home')} />
+                <PaymentCheckoutView pickupRequest={{ title: 'Household Subscription Plan', amount: '₦4,500 / mo' }} onPaymentSuccess={() => setCustomerActiveTab('home')} />
             )}
-
             {customerActiveTab === 'profile' && <ProfileView />}
 
             <CustomerNavbar activeTab={customerActiveTab === 'checkout' ? 'home' : customerActiveTab} setActiveTab={setCustomerActiveTab} />

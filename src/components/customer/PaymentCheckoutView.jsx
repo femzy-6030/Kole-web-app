@@ -15,24 +15,37 @@ import {
 } from 'lucide-react';
 
 export default function PaymentCheckoutView({ pickupRequest, onPaymentSuccess }) {
-    const { user } = useAuthStore();
+    const { user, addActiveRequest } = useAuthStore();
     const [isProcessing, setIsProcessing] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
 
-    // Extract dynamic request values with fallbacks
+    // Extract dynamic request values
     const planTitle = pickupRequest?.title || 'One-Time SOS Emergency Pickup';
     const area = pickupRequest?.Area || pickupRequest?.location?.area || user?.Area || user?.area || 'Oke-Fia';
     const street = pickupRequest?.location?.streetAddress || user?.address || 'Oke-Fia Junction, Osogbo';
     const stagingNotes = pickupRequest?.location?.stagingInstructions || user?.pickupBay || 'Front Staging Gate';
-
-    // Dynamic Price Formatting (Fixes ₦0.00 bug)
-    const displayAmount = pickupRequest?.amount || (pickupRequest?.numericAmount ? `₦${pickupRequest.numericAmount.toLocaleString()}` : '₦1,500');
+    const displayAmount = pickupRequest?.amount || '₦1,500';
 
     const handleCompletePayment = () => {
         setIsProcessing(true);
 
-        // Simulate instant payment gateway handshake (Paystack/Flutterwave)
         setTimeout(() => {
+            // Build the new order object
+            const newOrder = {
+                requestId: pickupRequest?.requestId || `#KL-${Math.floor(100000 + Math.random() * 900000)}`,
+                title: planTitle,
+                amount: displayAmount,
+                status: 'COLLECTOR_EN_ROUTE',
+                address: street,
+                area: area,
+                createdAt: new Date().toISOString()
+            };
+
+            // SYNC TO STORE: Push new order into activeRequests state
+            if (addActiveRequest) {
+                addActiveRequest(newOrder);
+            }
+
             setIsProcessing(false);
             setIsCompleted(true);
         }, 1200);
@@ -66,7 +79,7 @@ export default function PaymentCheckoutView({ pickupRequest, onPaymentSuccess })
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-400 font-bold">Status:</span>
-                        <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[10px] uppercase">
+                        <span className="font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded text-[10px] uppercase">
                             Collector En Route
                         </span>
                     </div>

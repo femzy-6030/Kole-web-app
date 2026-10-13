@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 
 export default function CustomerHome({ onNavigateToCheckout }) {
-    const { user, updateUserProfile } = useAuthStore();
+    const { user, updateUserProfile, activeRequests } = useAuthStore();
+    // ... existing states ...    const { user, updateUserProfile, activeRequests } = useAuthStore();
     const [selectedArea, setSelectedArea] = useState(user?.Area || user?.area || 'Oke-Fia');
     const [selectedPlan, setSelectedPlan] = useState('one-time');
 
@@ -26,10 +27,23 @@ export default function CustomerHome({ onNavigateToCheckout }) {
     const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
     const [unsupportedAddress, setUnsupportedAddress] = useState('');
 
+    // Service Plans with explicit pricing
     const plans = {
-        'one-time': { title: 'One-Time SOS Pickup', desc: 'Pay per single dispatch request' },
-        'weekly': { title: 'Weekly Household Pass', desc: '2 scheduled pickups every week' },
-        'monthly': { title: 'Monthly Unlimited Subscription', desc: 'Unlimited waste dispatches' },
+        'one-time': {
+            title: 'One-Time SOS Pickup',
+            price: '₦1,500',
+            desc: 'Pay per single dispatch request'
+        },
+        'weekly': {
+            title: 'Weekly Household Pass',
+            price: '₦4,500 / mo',
+            desc: '2 scheduled pickups every week'
+        },
+        'monthly': {
+            title: 'Monthly Unlimited Subscription',
+            price: '₦8,000 / mo',
+            desc: 'Unlimited waste dispatches'
+        },
     };
 
     const handleAreaChange = (newArea) => {
@@ -61,6 +75,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
             onNavigateToCheckout({
                 planKey,
                 title: planDetails.title,
+                amount: planDetails.price, // Fixed: passes dynamic price string (₦1,500, ₦4,500 / mo, etc.)
                 Area: selectedArea
             });
         }
@@ -113,7 +128,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                         onClick={() => handleTriggerCheckout('one-time')}
                         className="w-full py-3 text-xs font-black uppercase tracking-wider mt-1 flex items-center justify-center gap-2 cursor-pointer shadow-lg"
                     >
-                        <Zap size={15} /> Request Instant SOS Pickup
+                        <Zap size={15} /> Request Instant SOS Pickup ({plans['one-time'].price})
                     </Button>
                 </div>
             </div>
@@ -144,7 +159,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                             <Zap size={16} />
                         </div>
                         <p className="font-black text-slate-800 text-[11px]">One-Time</p>
-                        <p className="text-[9px] text-slate-500 font-medium leading-tight">Pay per pickup</p>
+                        <p className="text-[9px] text-brand-primary font-black leading-tight">{plans['one-time'].price}</p>
                     </div>
 
                     {/* Weekly Pass */}
@@ -159,7 +174,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                             <Calendar size={16} />
                         </div>
                         <p className="font-black text-slate-800 text-[11px]">Weekly Pass</p>
-                        <p className="text-[9px] text-slate-500 font-medium leading-tight">2 Pickups / wk</p>
+                        <p className="text-[9px] text-brand-primary font-black leading-tight">{plans['weekly'].price}</p>
                     </div>
 
                     {/* Monthly Subscription */}
@@ -174,7 +189,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                             <ShieldCheck size={16} />
                         </div>
                         <p className="font-black text-slate-800 text-[11px]">Monthly</p>
-                        <p className="text-[9px] text-slate-500 font-medium leading-tight">Unlimited / mo</p>
+                        <p className="text-[9px] text-brand-primary font-black leading-tight">{plans['monthly'].price}</p>
                     </div>
                 </div>
 
@@ -183,7 +198,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                     onClick={() => handleTriggerCheckout(selectedPlan)}
                     className="w-full py-3 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                 >
-                    <CreditCard size={15} /> Continue with {plans[selectedPlan].title}
+                    <CreditCard size={15} /> Continue with {plans[selectedPlan].title} ({plans[selectedPlan].price})
                 </Button>
             </div>
 
@@ -196,24 +211,44 @@ export default function CustomerHome({ onNavigateToCheckout }) {
             {/* 7. Awareness & Announcement Carousel */}
             <AwarenessCarousel />
 
-            {/* 8. Active Requests Tracking */}
+            {/* 8. DYNAMIC ACTIVE REQUESTS TRACKING */}
             <div className="bg-white rounded-3xl p-4 border border-slate-200/80 space-y-2.5 shadow-sm text-xs">
                 <div className="flex justify-between items-center">
                     <h3 className="font-black uppercase tracking-wider text-slate-400 text-[10px]">Your Active Requests</h3>
-                    <span className="font-bold text-brand-primary bg-emerald-50 px-2 py-0.5 rounded-md text-[10px]">1 Active</span>
+                    <span className="font-bold text-brand-primary bg-emerald-50 px-2 py-0.5 rounded-md text-[10px]">
+                        {activeRequests?.length || 0} Active
+                    </span>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-                    <div className="flex justify-between items-center">
-                        <span className="font-black text-slate-800">#KL-904102</span>
-                        <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-md uppercase">
-                            Pending Dispatch
-                        </span>
-                    </div>
-                    <p className="text-slate-500 text-[10px] font-medium">{user?.address || 'Oke-Fia Junction, Near Station Road'}</p>
+                <div className="space-y-2">
+                    {activeRequests && activeRequests.length > 0 ? (
+                        activeRequests.map((req, idx) => (
+                            <div key={idx} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-black text-slate-800">{req.requestId}</span>
+                                        <span className="text-[9px] font-bold text-brand-primary bg-emerald-100/60 px-1.5 py-0.2 rounded">
+                                            {req.amount}
+                                        </span>
+                                    </div>
+                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${req.status === 'CRITICAL_SOS' || req.status === 'PENDING_DISPATCH'
+                                            ? 'bg-amber-100 text-amber-800'
+                                            : 'bg-emerald-100 text-emerald-800'
+                                        }`}>
+                                        {req.status?.replace('_', ' ') || 'Pending Dispatch'}
+                                    </span>
+                                </div>
+                                <p className="text-slate-600 text-[10px] font-semibold">{req.title || 'SOS Waste Pickup'}</p>
+                                <p className="text-slate-400 text-[9.5px] font-medium truncate">
+                                    {req.address || user?.address || 'Oke-Fia Zone, Osogbo'}
+                                </p>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-slate-400 text-center py-2 text-[10px]">No active waste pickup requests.</p>
+                    )}
                 </div>
             </div>
-
             {/* Out-of-Zone Waitlist & WhatsApp Referral Modal */}
             <WaitlistCaptureModal
                 isOpen={isWaitlistOpen}
