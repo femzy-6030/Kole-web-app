@@ -211,7 +211,7 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
 
                         <div className="space-y-1">
                             <label className="font-bold text-slate-700 block">Assigned Operating Area Zone</label>
-                            <Areaelector
+                            <AreaSelector
                                 selectedArea={formData.Area}
                                 onAreaChange={(c) => handleChange('Area', c)}
                             />

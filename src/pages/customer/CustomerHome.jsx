@@ -4,9 +4,9 @@ import { useAuthStore } from '../../store/useAuthStore';
 import Button from '../../components/common/Button';
 import AreaSelector from '../../components/common/AreaSelector';
 import AwarenessCarousel from '../../components/common/AwarenessCarousel';
-import WhatsAppInviteCard from '../../components/common/WhatsAppInviteCard';
 import HeaderBar from '../../components/layout/HeaderBar';
 import WaitlistCaptureModal from '../../components/common/WaitlistCaptureModal';
+import WhatsAppInviteCard from '../../components/common/WhatsAppInviteCard'; // <--- ADD THIS IMPORT
 import { checkZoneCoverage } from '../../utils/zoneValidator';
 import {
     MapPin,
@@ -26,9 +26,9 @@ export default function CustomerHome({ onNavigateToCheckout }) {
     const [unsupportedAddress, setUnsupportedAddress] = useState('');
 
     const plans = {
-        'one-time': { title: 'One-Time SOS Pickup', price: '₦1,500', desc: 'Pay per single dispatch request' },
-        'weekly': { title: 'Weekly Household Pass', price: '₦4,500 / mo', desc: '2 scheduled pickups every week' },
-        'monthly': { title: 'Monthly Unlimited Subscription', price: '₦8,000 / mo', desc: 'Unlimited waste dispatches' },
+        'one-time': { title: 'One-Time SOS Pickup', price: '₦0,00', desc: 'Pay per single dispatch request' },
+        'weekly': { title: 'Weekly Household Pass', price: '₦0,00 / mo', desc: '2 scheduled pickups every week' },
+        'monthly': { title: 'Monthly Unlimited Subscription', price: '₦0,00 / mo', desc: 'Unlimited waste dispatches' },
     };
 
     const handleAreaChange = (newArea) => {
@@ -102,13 +102,16 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                         onClick={() => handleTriggerCheckout('one-time')}
                         className="w-full py-3.5 text-xs font-black uppercase tracking-wider mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg"
                     >
-                        <Zap size={16} /> Request SOS Waste Pickup (₦1,500)
+                        <Zap size={16} /> Request SOS Waste Pickup (₦0,00)
                     </Button>
                 </div>
             </div>
 
             {/* 4. Dynamic Awareness & Announcement Carousel */}
             <AwarenessCarousel />
+
+            {/* 4.5 WHATSAPP NEIGHBORHOOD REFERRAL ENGINE */}
+            <WhatsAppInviteCard userId={user?.id} userCluster={selectedArea} />
 
             {/* 5. Pickup & Subscription Plans */}
             <div className="bg-white rounded-3xl p-5 border border-slate-200/80 space-y-4 shadow-sm text-xs">
@@ -129,7 +132,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                         <Zap size={18} className="mx-auto text-brand-primary" />
                         <p className="font-black text-slate-800 text-xs">One-Time</p>
                         <p className="text-[10px] text-slate-500">Pay as you go</p>
-                        <p className="font-black text-brand-primary text-xs pt-1">₦1,500</p>
+                        <p className="font-black text-brand-primary text-xs pt-1">₦0,00</p>
                     </div>
 
                     {/* Weekly Pass */}
@@ -143,7 +146,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                         <Calendar size={18} className="mx-auto text-brand-primary" />
                         <p className="font-black text-slate-800 text-xs">Weekly Pass</p>
                         <p className="text-[10px] text-slate-500">2 Pickups / wk</p>
-                        <p className="font-black text-brand-primary text-xs pt-1">₦4,500/mo</p>
+                        <p className="font-black text-brand-primary text-xs pt-1">₦0,00/mo</p>
                     </div>
 
                     {/* Monthly Subscription */}
@@ -157,7 +160,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                         <ShieldCheck size={18} className="mx-auto text-brand-primary" />
                         <p className="font-black text-slate-800 text-xs">Monthly</p>
                         <p className="text-[10px] text-slate-500">Unlimited / mo</p>
-                        <p className="font-black text-brand-primary text-xs pt-1">₦8,000/mo</p>
+                        <p className="font-black text-brand-primary text-xs pt-1">₦0,00/mo</p>
                     </div>
                 </div>
 

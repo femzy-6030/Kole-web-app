@@ -287,7 +287,7 @@ export default function App() {
 
                                 <div className="space-y-1">
                                     <label className="font-bold text-slate-700 uppercase tracking-wide block">Operating Area Zone</label>
-                                    <Areaelector selectedArea={Area} onAreaChange={(c) => setArea(c)} />
+                                    <AreaSelector selectedArea={Area} onAreaChange={(c) => setArea(c)} />
                                 </div>
 
                                 <div>

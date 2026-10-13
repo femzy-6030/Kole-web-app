@@ -76,7 +76,7 @@ export default function ProfileView() {
 
                 {/* GPS-Enabled Area Selector */}
                 <div className="p-3 bg-slate-50 rounded-2xl">
-                    <Areaelector selectedArea={Area} onAreaChange={setArea} />
+                    <AreaSelector selectedArea={Area} onAreaChange={setArea} />
                 </div>
 
                 {/* Editable Phone Number */}

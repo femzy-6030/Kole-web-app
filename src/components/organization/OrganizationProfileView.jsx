@@ -99,7 +99,7 @@ export default function OrganizationProfileView() {
                 {/* Operating Area Selector */}
                 <div className="space-y-1.5 pt-1">
                     <label className="font-bold text-slate-700 block">Assigned Operating Area Zone</label>
-                    <Areaelector
+                    <AreaSelector
                         selectedArea={orgData.Area}
                         onAreaChange={(Area) => setOrgData({ ...orgData, Area })}
                     />
