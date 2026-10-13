@@ -14,8 +14,7 @@ import {
     Zap,
     Calendar,
     ShieldCheck,
-    CreditCard,
-    ChevronRight
+    CreditCard
 } from 'lucide-react';
 
 export default function CustomerHome({ onNavigateToCheckout }) {
@@ -23,7 +22,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
     const [selectedArea, setSelectedArea] = useState(user?.Area || user?.area || 'Oke-Fia');
     const [selectedPlan, setSelectedPlan] = useState('one-time');
 
-    // Waitlist and Out-of-Zone Modal States
+    // Out-of-Zone Waitlist Modal State
     const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
     const [unsupportedAddress, setUnsupportedAddress] = useState('');
 
@@ -35,6 +34,8 @@ export default function CustomerHome({ onNavigateToCheckout }) {
 
     const handleAreaChange = (newArea) => {
         setSelectedArea(newArea);
+
+        // Validate area against active clusters
         const coverage = checkZoneCoverage(newArea);
 
         if (!coverage.active) {
@@ -46,6 +47,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
     };
 
     const handleTriggerCheckout = (planKey) => {
+        // Double-check location coverage before opening checkout
         const coverage = checkZoneCoverage(selectedArea);
 
         if (!coverage.active) {
@@ -116,7 +118,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                 </div>
             </div>
 
-            {/* 4. CORE SERVICES: Select Pickup & Payment Plan (Brought Up!) */}
+            {/* 4. CORE SERVICES: Select Pickup & Payment Plan */}
             <div className="bg-white rounded-3xl p-4 border border-slate-200/80 space-y-3 shadow-sm text-xs">
                 <div className="flex justify-between items-center">
                     <div>
@@ -128,7 +130,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                     </span>
                 </div>
 
-                {/* 3-Column Plan Grid (OPay Quick-Action Style) */}
+                {/* 3-Column Quick Action Plan Grid */}
                 <div className="grid grid-cols-3 gap-2">
                     {/* One-Time Plan */}
                     <div
@@ -191,7 +193,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
             {/* 6. WhatsApp Referral Engine */}
             <WhatsAppInviteCard userId={user?.id} userCluster={selectedArea} />
 
-            {/* 7. Awareness & Announcement Carousel (Moved Below Features) */}
+            {/* 7. Awareness & Announcement Carousel */}
             <AwarenessCarousel />
 
             {/* 8. Active Requests Tracking */}
