@@ -9,7 +9,7 @@ import OrganizationHome from './pages/organization/OrganizationHome';
 import OrganizationProfileView from './components/organization/OrganizationProfileView';
 import CollectorOnboarding from './pages/collector/CollectorOnboarding';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import ClusterSelector from './components/common/ClusterSelector';
+import AreaSelector from "./components/common/AreaSelector";
 import { AnnouncementModal } from './components/common/AwarenessCarousel';
 import koleLogo from './assets/Kole.png';
 import Button from './components/common/Button';
@@ -97,7 +97,7 @@ export default function App() {
     const [showAnnouncement, setShowAnnouncement] = useState(false);
     const activeAnnouncement = {
         title: 'Welcome to KÓLẸ̀ Osogbo!',
-        message: 'Scheduled pickups for Oke-Fia and Sabo clusters run daily between 8:00 AM and 5:00 PM. Keep your staging bay accessible!'
+        message: 'Scheduled pickups for Oke-Fia and Sabo Area run daily between 8:00 AM and 5:00 PM. Keep your staging bay accessible!'
     };
 
     // Shared Auth Form Fields
@@ -109,7 +109,7 @@ export default function App() {
     // New User Form Fields
     const [fullName, setFullName] = useState('');
     const [address, setAddress] = useState('');
-    const [cluster, setCluster] = useState('Oke-Fia');
+    const [Area, setArea] = useState('Oke-Fia');
     const [orgName, setOrgName] = useState('');
     const [officerName, setOfficerName] = useState('');
     const [pickupBay, setPickupBay] = useState('');
@@ -151,7 +151,7 @@ export default function App() {
                     orgName: orgName || 'Oroki Innovation Hub',
                     officerInCharge: officerName || 'Mr. Lukman Adeoti',
                     phoneNumber: phoneNumber || '08034567891',
-                    cluster: cluster,
+                    Area: Area,
                     address: address || 'Plot 4, Station Road, Opp. Union Bank, Oke-Fia, Osogbo',
                     pickupBay: pickupBay || 'Rear Loading Dock near Generator House',
                 };
@@ -160,7 +160,7 @@ export default function App() {
                     id: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
                     fullName: fullName || 'Olayinka Oluwafemi',
                     phoneNumber: phoneNumber || '09014603028',
-                    cluster: cluster,
+                    Area: Area,
                     address: address || 'Oke-Fia Junction, Near Station Road, Osogbo',
                 };
             }
@@ -220,8 +220,8 @@ export default function App() {
                             type="button"
                             onClick={() => setSelectedRole('customer')}
                             className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${selectedRole === 'customer'
-                                    ? 'bg-white text-brand-primary shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700'
+                                ? 'bg-white text-brand-primary shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
                             <User size={16} />
@@ -232,8 +232,8 @@ export default function App() {
                             type="button"
                             onClick={() => setSelectedRole('organization')}
                             className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${selectedRole === 'organization'
-                                    ? 'bg-white text-brand-primary shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700'
+                                ? 'bg-white text-brand-primary shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
                             <Building2 size={16} />
@@ -286,8 +286,8 @@ export default function App() {
                                 )}
 
                                 <div className="space-y-1">
-                                    <label className="font-bold text-slate-700 uppercase tracking-wide block">Operating Cluster Zone</label>
-                                    <ClusterSelector selectedCluster={cluster} onClusterChange={(c) => setCluster(c)} />
+                                    <label className="font-bold text-slate-700 uppercase tracking-wide block">Operating Area Zone</label>
+                                    <Areaelector selectedArea={Area} onAreaChange={(c) => setArea(c)} />
                                 </div>
 
                                 <div>
@@ -456,7 +456,7 @@ export default function App() {
             )}
 
             {customerActiveTab === 'payments' && (
-                <PaymentCheckoutView pickupRequest={{ title: 'Household Subscription Plan', amount: '₦4,500' }} onPaymentSuccess={() => setCustomerActiveTab('home')} />
+                <PaymentCheckoutView pickupRequest={{ title: 'Household Subscription Plan', amount: '₦0.00' }} onPaymentSuccess={() => setCustomerActiveTab('home')} />
             )}
 
             {customerActiveTab === 'profile' && <ProfileView />}

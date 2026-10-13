@@ -3,23 +3,23 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { Truck, MapPin, LogOut, Wallet } from 'lucide-react';
 import Logo from '../common/Logo';
 
-export default function CollectorNavbar({ activeTab, setActiveTab, activeCluster, onChangeCluster }) {
+export default function CollectorNavbar({ activeTab, setActiveTab, activeArea, onChangeArea }) {
     const { logout } = useAuthStore();
 
     return (
         <header className="sticky top-0 z-40 bg-slate-900 text-white shadow-md">
             <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
 
-                {/* Brand & Operating Cluster Selector Button */}
+                {/* Brand & Operating Area Selector Button */}
                 <div className="flex items-center gap-2">
                     <Logo className="h-7 w-auto text-white" />
                     <button
-                        onClick={onChangeCluster}
+                        onClick={onChangeArea}
                         className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 rounded-full text-xs font-bold transition-all border border-white/10"
-                        title="Switch Operating Cluster"
+                        title="Switch Operating Area"
                     >
                         <MapPin size={12} className="text-brand-accent" />
-                        <span>{activeCluster}</span>
+                        <span>{activeArea}</span>
                     </button>
                 </div>
 

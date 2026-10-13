@@ -2,9 +2,12 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import Button from '../../components/common/Button';
-import ClusterSelector from '../../components/common/ClusterSelector';
+import AreaSelector from '../../components/common/AreaSelector';
 import AwarenessCarousel from '../../components/common/AwarenessCarousel';
+import WhatsAppInviteCard from '../../components/common/WhatsAppInviteCard';
 import HeaderBar from '../../components/layout/HeaderBar';
+import WaitlistCaptureModal from '../../components/common/WaitlistCaptureModal';
+import { checkZoneCoverage } from '../../utils/zoneValidator';
 import {
     MapPin,
     Zap,
@@ -15,8 +18,12 @@ import {
 
 export default function CustomerHome({ onNavigateToCheckout }) {
     const { user, updateUserProfile } = useAuthStore();
-    const [selectedCluster, setSelectedCluster] = useState(user?.cluster || 'Oke-Fia');
+    const [selectedArea, setSelectedArea] = useState(user?.Area || user?.area || 'Oke-Fia');
     const [selectedPlan, setSelectedPlan] = useState('one-time');
+
+    // State for Waitlist Modal & Out-of-Zone handling
+    const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
+    const [unsupportedAddress, setUnsupportedAddress] = useState('');
 
     const plans = {
         'one-time': { title: 'One-Time SOS Pickup', price: '₦1,500', desc: 'Pay per single dispatch request' },
@@ -24,19 +31,38 @@ export default function CustomerHome({ onNavigateToCheckout }) {
         'monthly': { title: 'Monthly Unlimited Subscription', price: '₦8,000 / mo', desc: 'Unlimited waste dispatches' },
     };
 
-    const handleClusterChange = (newCluster) => {
-        setSelectedCluster(newCluster);
-        updateUserProfile({ cluster: newCluster });
+    const handleAreaChange = (newArea) => {
+        setSelectedArea(newArea);
+
+        // Run zone coverage validation against user input
+        const coverage = checkZoneCoverage(newArea);
+
+        if (!coverage.active) {
+            // Address is out of zone -> Trigger Waitlist & Referral Modal
+            setUnsupportedAddress(newArea);
+            setIsWaitlistOpen(true);
+        } else {
+            // Address is valid -> Update Store State
+            updateUserProfile({ Area: newArea, area: newArea });
+        }
     };
 
     const handleTriggerCheckout = (planKey) => {
+        // Validate area coverage before launching checkout
+        const coverage = checkZoneCoverage(selectedArea);
+        if (!coverage.active) {
+            setUnsupportedAddress(selectedArea);
+            setIsWaitlistOpen(true);
+            return;
+        }
+
         const planDetails = plans[planKey];
         if (onNavigateToCheckout) {
             onNavigateToCheckout({
                 planKey,
                 title: planDetails.title,
                 amount: planDetails.price,
-                cluster: selectedCluster
+                Area: selectedArea
             });
         }
     };
@@ -44,20 +70,20 @@ export default function CustomerHome({ onNavigateToCheckout }) {
     return (
         <div className="space-y-5 max-w-lg mx-auto pb-24">
 
-            {/* 1. Global Brand Header Bar (Contains Logo & User Profile Info) */}
+            {/* 1. Global Brand Header Bar */}
             <HeaderBar />
 
-            {/* 2. Cluster Location Selector Bar */}
+            {/* 2. Area Location Selector Bar */}
             <div className="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-sm space-y-2 text-xs">
                 <div className="flex justify-between items-center">
-                    <span className="font-bold text-slate-400">Operating Cluster Zone</span>
+                    <span className="font-bold text-slate-400">Operating Area Zone</span>
                     <span className="font-black text-brand-primary flex items-center gap-1">
-                        <MapPin size={14} /> {selectedCluster} Zone
+                        <MapPin size={14} /> {selectedArea} Zone
                     </span>
                 </div>
-                <ClusterSelector
-                    selectedCluster={selectedCluster}
-                    onClusterChange={handleClusterChange}
+                <AreaSelector
+                    selectedArea={selectedArea}
+                    onAreaChange={handleAreaChange}
                 />
             </div>
 
@@ -69,7 +95,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                     </span>
                     <h2 className="text-xl font-black leading-snug">Need Immediate Waste Pickup?</h2>
                     <p className="text-slate-300 font-medium leading-relaxed">
-                        Dispatch an emergency collector directly to your doorstep in <span className="font-bold text-white">{selectedCluster}</span>.
+                        Dispatch an emergency collector directly to your doorstep in <span className="font-bold text-white">{selectedArea}</span>.
                     </p>
 
                     <Button
@@ -81,7 +107,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                 </div>
             </div>
 
-            {/* 4. DYNAMIC AWARENESS & ANNOUNCEMENT CAROUSEL */}
+            {/* 4. Dynamic Awareness & Announcement Carousel */}
             <AwarenessCarousel />
 
             {/* 5. Pickup & Subscription Plans */}
@@ -161,6 +187,13 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                     <p className="text-slate-500 text-[11px] font-medium">{user?.address || 'Oke-Fia Junction, Near Station Road'}</p>
                 </div>
             </div>
+
+            {/* 7. Out-of-Zone Waitlist & WhatsApp Referral Modal */}
+            <WaitlistCaptureModal
+                isOpen={isWaitlistOpen}
+                onClose={() => setIsWaitlistOpen(false)}
+                userAddress={unsupportedAddress || selectedArea}
+            />
 
         </div>
     );

@@ -54,7 +54,7 @@ export default function PricingControls() {
 
                 <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-2.5 text-xs text-brand-primary font-bold">
                     <ShieldAlert size={18} />
-                    <span>Setting Base Pickup Fee to ₦0.00 maintains zero-cost public service mode across all clusters.</span>
+                    <span>Setting Base Pickup Fee to ₦0.00 maintains zero-cost public service mode across all Area.</span>
                 </div>
 
                 <div className="flex items-center gap-3">

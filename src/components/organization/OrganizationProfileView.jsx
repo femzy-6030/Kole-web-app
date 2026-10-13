@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import Button from '../common/Button';
-import ClusterSelector from '../common/ClusterSelector';
+import AreaSelector from '../common/AreaSelector';
 import {
     Building2,
     MapPin,
@@ -23,7 +23,7 @@ export default function OrganizationProfileView() {
     const [orgData, setOrgData] = useState({
         orgName: user?.fullName || 'Oroki Innovation Hub',
         category: 'Commercial / Tech Hub',
-        cluster: user?.cluster || 'Oke-Fia',
+        Area: user?.Area || 'Oke-Fia',
         address: 'Plot 4, Station Road, Opp. Union Bank, Oke-Fia, Osogbo',
         pickupBay: 'Rear Loading Dock near Generator House',
         managerName: 'Mr. Lukman Adeoti',
@@ -96,12 +96,12 @@ export default function OrganizationProfileView() {
                     </div>
                 </div>
 
-                {/* Operating Cluster Selector */}
+                {/* Operating Area Selector */}
                 <div className="space-y-1.5 pt-1">
-                    <label className="font-bold text-slate-700 block">Assigned Operating Cluster Zone</label>
-                    <ClusterSelector
-                        selectedCluster={orgData.cluster}
-                        onClusterChange={(cluster) => setOrgData({ ...orgData, cluster })}
+                    <label className="font-bold text-slate-700 block">Assigned Operating Area Zone</label>
+                    <Areaelector
+                        selectedArea={orgData.Area}
+                        onAreaChange={(Area) => setOrgData({ ...orgData, Area })}
                     />
                 </div>
 

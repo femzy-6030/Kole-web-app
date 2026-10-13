@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import Button from '../common/Button';
-import ClusterSelector from '../common/ClusterSelector';
+import AreaSelector from '../common/AreaSelector';
 import {
     Phone,
     LogOut,
@@ -20,7 +20,7 @@ import {
 
 export default function ProfileView() {
     const { user, logout } = useAuthStore();
-    const [cluster, setCluster] = useState(user?.cluster || 'Oke-Fia');
+    const [Area, setArea] = useState(user?.Area || 'Oke-Fia');
 
     // Editable contact states
     const [phone, setPhone] = useState(user?.phoneNumber || '09014603028');
@@ -74,9 +74,9 @@ export default function ProfileView() {
             <div className="bg-white rounded-3xl p-5 border border-slate-200 space-y-4 shadow-sm">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Account Preferences</h3>
 
-                {/* GPS-Enabled Cluster Selector */}
+                {/* GPS-Enabled Area Selector */}
                 <div className="p-3 bg-slate-50 rounded-2xl">
-                    <ClusterSelector selectedCluster={cluster} onClusterChange={setCluster} />
+                    <Areaelector selectedArea={Area} onAreaChange={setArea} />
                 </div>
 
                 {/* Editable Phone Number */}
@@ -186,7 +186,7 @@ export default function ProfileView() {
                         <HelpCircle size={18} className="text-brand-primary" />
                         <div>
                             <p className="font-bold text-slate-800">Osogbo Operations Support</p>
-                            <p className="text-slate-400 text-[11px]">Chat with cluster coordinators on WhatsApp</p>
+                            <p className="text-slate-400 text-[11px]">Chat with Area coordinators on WhatsApp</p>
                         </div>
                     </div>
                     <ChevronRight size={16} className="text-slate-400" />

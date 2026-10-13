@@ -15,7 +15,7 @@ export const useJobStore = create((set, get) => ({
             customerName: 'Olayinka Oluwafemi',
             phone: '08012345678',
             address: 'Oke-Fia Junction, Near Station Road',
-            cluster: 'Oke-Fia',
+            Area: 'Oke-Fia',
             wasteVolume: 'Medium (3-5 Bags)',
             scheduleWindow: 'ASAP',
             status: 'PENDING', // PENDING | IN_TRANSIT | ARRIVED | COMPLETED
@@ -29,7 +29,7 @@ export const useJobStore = create((set, get) => ({
             customerName: 'Aisha Bello',
             phone: '08123456789',
             address: 'Alekuwodo Road, Osogbo',
-            cluster: 'Alekuwodo',
+            Area: 'Alekuwodo',
             wasteVolume: 'Small (1-2 Bags)',
             scheduleWindow: 'ASAP',
             status: 'PENDING',

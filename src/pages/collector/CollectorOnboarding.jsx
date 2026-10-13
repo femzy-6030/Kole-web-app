@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import Button from '../../components/common/Button';
-import ClusterSelector from '../../components/common/ClusterSelector';
+import AreaSelector from '../../components/common/AreaSelector';
 import koleLogo from '../../assets/Kole.png';
 import {
     Truck,
@@ -26,7 +26,7 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
     const [formData, setFormData] = useState({
         collectorName: '',
         phone: '',
-        cluster: 'Oke-Fia',
+        Area: 'Oke-Fia',
         vehicleCount: 1,
         workerCount: 2,
         bankName: 'First Bank of Nigeria',
@@ -127,7 +127,7 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
                     </div>
                     <h2 className="text-xl font-black text-slate-800">Registration Complete!</h2>
                     <p className="text-slate-500 font-medium leading-relaxed">
-                        Your collector operator profile and bank account details for <strong className="text-slate-800">{formData.collectorName}</strong> have been registered. Automated payout splitting is now active for <strong className="text-slate-800">{formData.cluster} Zone</strong>.
+                        Your collector operator profile and bank account details for <strong className="text-slate-800">{formData.collectorName}</strong> have been registered. Automated payout splitting is now active for <strong className="text-slate-800">{formData.Area} Zone</strong>.
                     </p>
                     <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-left space-y-1 text-[11px]">
                         <p className="text-slate-600"><strong>Bank:</strong> {formData.bankName}</p>
@@ -210,10 +210,10 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
                         </div>
 
                         <div className="space-y-1">
-                            <label className="font-bold text-slate-700 block">Assigned Operating Cluster Zone</label>
-                            <ClusterSelector
-                                selectedCluster={formData.cluster}
-                                onClusterChange={(c) => handleChange('cluster', c)}
+                            <label className="font-bold text-slate-700 block">Assigned Operating Area Zone</label>
+                            <Areaelector
+                                selectedArea={formData.Area}
+                                onAreaChange={(c) => handleChange('Area', c)}
                             />
                         </div>
                     </div>

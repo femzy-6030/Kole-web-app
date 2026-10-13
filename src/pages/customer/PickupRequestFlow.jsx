@@ -1,194 +1,137 @@
 // src/pages/customer/PickupRequestFlow.jsx
 import React, { useState } from 'react';
 import Button from '../../components/common/Button';
-import Input from '../../components/common/Input';
-import PaymentModal from '../../components/customer/PaymentModal';
-import { ShieldCheck, ArrowLeft } from 'lucide-react';
+import WaitlistCaptureModal from '../../components/common/WaitlistCaptureModal';
+import { checkZoneCoverage } from '../../utils/zoneValidator';
+import { MapPin, Navigation, ArrowLeft, AlertCircle, Zap } from 'lucide-react';
 
-export default function PickupRequestFlow({ onCancel, onRequestCreated }) {
-    const [step, setStep] = useState(1);
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
+export default function PickupRequestFlow({ onBack, onProceedToPayment }) {
+    const [address, setAddress] = useState('');
+    const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
+    const [outOfZoneWarning, setOutOfZoneWarning] = useState(false);
+    const [allowSpecialDispatch, setAllowSpecialDispatch] = useState(false);
 
-    const [requestData, setRequestData] = useState({
-        address: 'Oke-Fia Junction, Near Station Road, Osogbo',
-        cluster: 'Oke-Fia',
-        wasteVolume: 'Medium (3-5 Bags)',
-        scheduleWindow: 'ASAP',
-        notes: '',
-        customerFee: 0.0, // Default ₦0.00 base price
-    });
-
-    const handleNext = () => setStep((prev) => prev + 1);
-    const handleBack = () => setStep((prev) => prev - 1);
-
-    // Triggered when user clicks "Proceed to Checkout" in Step 3
-    const handleOpenCheckout = (e) => {
+    const handleAddressSubmit = (e) => {
         e.preventDefault();
-        setShowPaymentModal(true);
-    };
 
-    // Called after payment/zero-cost confirmation succeeds inside PaymentModal
-    const handlePaymentCompleted = (paymentReceipt) => {
-        setShowPaymentModal(false);
-        const newRequest = {
-            id: `KL-${Math.floor(100000 + Math.random() * 900000)}`,
-            status: 'SEARCHING_FOR_COLLECTOR',
-            createdAt: new Date().toISOString(),
-            payment: paymentReceipt,
-            ...requestData,
-        };
-        onRequestCreated(newRequest);
+        const coverage = checkZoneCoverage(address);
+
+        if (!coverage.active && !allowSpecialDispatch) {
+            // Address is outside primary cluster zones!
+            setOutOfZoneWarning(true);
+            return;
+        }
+
+        // Proceed to payment/checkout if address is valid OR user accepted special dispatch
+        if (onProceedToPayment) {
+            onProceedToPayment({
+                address,
+                cluster: coverage.matchedZone || 'OUT-OF-ZONE (SPECIAL DISPATCH)',
+                isSpecialDispatch: !coverage.active
+            });
+        }
     };
 
     return (
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+        <div className="max-w-lg mx-auto p-4 space-y-5 text-xs">
 
-            {/* Step Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+            {/* Header Bar */}
+            <div className="flex items-center justify-between">
                 <button
-                    onClick={step === 1 ? onCancel : handleBack}
-                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+                    onClick={onBack}
+                    className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-xl shadow-sm border border-slate-200/80"
                 >
-                    <ArrowLeft size={18} />
+                    <ArrowLeft size={16} /> Back
                 </button>
-                <span className="text-xs font-black uppercase tracking-wider text-brand-primary">
-                    Step {step} of 3
+                <span className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                    Step 1: Location Setup
                 </span>
             </div>
 
-            {/* STEP 1: Location & Cluster Selection */}
-            {step === 1 && (
-                <div className="space-y-4">
-                    <div>
-                        <h2 className="text-lg font-black text-slate-800">Confirm Location</h2>
-                        <p className="text-xs text-slate-500">Pickups are routed strictly within your selected cluster[cite: 1, 2].</p>
-                    </div>
-
-                    <Input
-                        label="Pickup Address"
-                        value={requestData.address}
-                        onChange={(e) => setRequestData({ ...requestData, address: e.target.value })}
-                    />
-
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                            Selected Government Cluster
-                        </label>
-                        <div className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm font-bold flex items-center justify-between">
-                            <span>{requestData.cluster}</span>
-                            <span className="text-[10px] bg-emerald-100 text-brand-primary px-2 py-0.5 rounded-md uppercase">Locked Cluster</span>
-                        </div>
-                    </div>
-
-                    <Button onClick={handleNext} className="w-full mt-4">
-                        Continue to Waste Details
-                    </Button>
+            {/* Main Address Form Card */}
+            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm space-y-4">
+                <div>
+                    <h2 className="text-base font-black text-slate-800">Where should we collect the waste?</h2>
+                    <p className="text-slate-500 text-[11px] mt-0.5">
+                        Enter your exact pickup address in Osogbo.
+                    </p>
                 </div>
-            )}
 
-            {/* STEP 2: Waste Volume & Schedule Window */}
-            {step === 2 && (
-                <div className="space-y-4">
-                    <div>
-                        <h2 className="text-lg font-black text-slate-800">Waste Volume & Timing</h2>
-                        <p className="text-xs text-slate-500">Select estimated size and preferred window[cite: 1, 2].</p>
+                <form onSubmit={handleAddressSubmit} className="space-y-4">
+                    <div className="relative">
+                        <MapPin className="absolute left-3.5 top-3.5 text-brand-primary" size={18} />
+                        <input
+                            type="text"
+                            required
+                            placeholder="e.g. No 14, Station Road, Oke-Fia, Osogbo"
+                            value={address}
+                            onChange={(e) => {
+                                setAddress(e.target.value);
+                                setOutOfZoneWarning(false); // Reset warning on edit
+                            }}
+                            className="w-full pl-10 pr-4 py-3 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-primary text-xs font-medium text-slate-800"
+                        />
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Estimated Waste Volume</label>
-                        <div className="grid grid-cols-3 gap-2">
-                            {['Small (1-2 Bags)', 'Medium (3-5 Bags)', 'Large (6+ Bags)'].map((size) => (
+                    {/* Out-of-Zone Choices Banner (Triggers if address isn't in active clusters) */}
+                    {outOfZoneWarning && (
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-3 animate-in fade-in duration-200">
+                            <div className="flex items-start gap-2 text-amber-900 font-bold">
+                                <AlertCircle size={18} className="shrink-0 text-amber-600 mt-0.5" />
+                                <p className="text-[11px] leading-tight">
+                                    Your address is currently outside our primary cluster zones in Osogbo.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-2 pt-1">
+                                {/* Choice 1: Request Special Dispatch */}
                                 <button
-                                    key={size}
                                     type="button"
-                                    onClick={() => setRequestData({ ...requestData, wasteVolume: size })}
-                                    className={`p-3 rounded-xl text-xs font-bold border transition-all text-center ${requestData.wasteVolume === size
-                                        ? 'border-brand-primary bg-emerald-50 text-brand-primary shadow-sm'
-                                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                                        }`}
+                                    onClick={() => {
+                                        setAllowSpecialDispatch(true);
+                                        setOutOfZoneWarning(false);
+                                    }}
+                                    className="w-full p-3 bg-white border border-amber-300 rounded-xl text-left hover:bg-amber-100/50 transition-all flex items-center justify-between"
                                 >
-                                    {size}
+                                    <div>
+                                        <p className="font-black text-amber-950">Request Out-of-Zone Special Dispatch</p>
+                                        <p className="text-[10px] text-amber-800 font-medium">
+                                            Dispatch from nearest cluster (Oke-Fia). Distance surcharge may apply.
+                                        </p>
+                                    </div>
+                                    <Zap size={16} className="text-amber-600 shrink-0" />
                                 </button>
-                            ))}
-                        </div>
-                    </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Pickup Window</label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {['ASAP (Immediate)', 'Scheduled Today'].map((windowOption) => (
+                                {/* Choice 2: Join Neighborhood Waitlist */}
                                 <button
-                                    key={windowOption}
                                     type="button"
-                                    onClick={() => setRequestData({ ...requestData, scheduleWindow: windowOption })}
-                                    className={`p-3 rounded-xl text-xs font-bold border transition-all text-center ${requestData.scheduleWindow === windowOption
-                                        ? 'border-brand-primary bg-emerald-50 text-brand-primary'
-                                        : 'border-slate-200 text-slate-600'
-                                        }`}
+                                    onClick={() => setIsWaitlistOpen(true)}
+                                    className="w-full p-3 bg-emerald-600 text-white rounded-xl text-left hover:bg-emerald-700 transition-all flex items-center justify-between"
                                 >
-                                    {windowOption}
+                                    <div>
+                                        <p className="font-black">Join Neighborhood Expansion Waitlist</p>
+                                        <p className="text-[10px] text-emerald-100 font-medium">
+                                            Help open a full cluster here & earn a 15% WhatsApp discount voucher!
+                                        </p>
+                                    </div>
+                                    <Navigation size={16} className="shrink-0" />
                                 </button>
-                            ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
-                    <Button onClick={handleNext} className="w-full mt-4">
-                        Review Order Summary
-                    </Button>
-                </div>
-            )}
-
-            {/* STEP 3: Order Review & Checkout Modal Trigger */}
-            {step === 3 && (
-                <form onSubmit={handleOpenCheckout} className="space-y-4">
-                    <div>
-                        <h2 className="text-lg font-black text-slate-800">Order Summary</h2>
-                        <p className="text-xs text-slate-500">Review order details before launching checkout[cite: 1, 2].</p>
-                    </div>
-
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                        <div className="flex justify-between text-xs">
-                            <span className="text-slate-500 font-medium">Location:</span>
-                            <span className="font-bold text-slate-800 text-right">{requestData.address}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                            <span className="text-slate-500 font-medium">Cluster:</span>
-                            <span className="font-bold text-brand-primary">{requestData.cluster}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                            <span className="text-slate-500 font-medium">Volume:</span>
-                            <span className="font-bold text-slate-800">{requestData.wasteVolume}</span>
-                        </div>
-                        <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
-                            <span className="text-xs font-black uppercase text-slate-700">Total Price:</span>
-                            <span className="text-xl font-black text-brand-primary">₦{requestData.customerFee.toFixed(2)}</span>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 p-3 bg-emerald-50 text-brand-primary rounded-xl text-xs font-bold">
-                        <ShieldCheck size={18} />
-                        <span>Guaranteed dispatch to verified cluster collector[cite: 1, 2].</span>
-                    </div>
-
-                    <Button type="submit" className="w-full mt-2">
-                        Proceed to Checkout & Dispatch
+                    <Button type="submit" className="w-full py-3.5 font-bold text-xs">
+                        {allowSpecialDispatch ? 'Proceed with Special Dispatch' : 'Continue to Service Plan'}
                     </Button>
                 </form>
-            )}
+            </div>
 
-            {/* Payment Checkout Modal */}
-            {showPaymentModal && (
-                <PaymentModal
-                    orderDetails={{
-                        id: `KL-${Math.floor(100000 + Math.random() * 900000)}`,
-                        amount: requestData.customerFee,
-                        cluster: requestData.cluster,
-                        wasteVolume: requestData.wasteVolume,
-                    }}
-                    onPaymentSuccess={handlePaymentCompleted}
-                    onClose={() => setShowPaymentModal(false)}
-                />
-            )}
+            {/* Waitlist Modal Integration */}
+            <WaitlistCaptureModal
+                isOpen={isWaitlistOpen}
+                onClose={() => setIsWaitlistOpen(false)}
+                userAddress={address || 'Osogbo Neighborhood'}
+            />
 
         </div>
     );

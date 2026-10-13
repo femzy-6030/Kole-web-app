@@ -74,7 +74,7 @@ export default function PaymentCheckoutView({ pickupRequest, onPaymentSuccess })
             <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100 flex justify-between items-center">
                 <div>
                     <p className="font-bold text-slate-800">SOS Emergency Pickup Fee</p>
-                    <p className="text-[10px] text-slate-500">Operating Cluster: {user?.cluster || 'Oke-Fia'}</p>
+                    <p className="text-[10px] text-slate-500">Operating Area: {user?.Area || 'Oke-Fia'}</p>
                 </div>
                 <p className="text-lg font-black text-brand-primary">₦0.00</p>
             </div>

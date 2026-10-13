@@ -56,7 +56,7 @@ export default function AwarenessCarousel({ customItems }) {
             iconBg: 'bg-amber-500 text-white',
             border: 'border-amber-200/60',
             title: 'Separate Organic & Plastics',
-            description: 'Sorting plastic bottles and cardboard speeds up evacuation times across Osogbo clusters!',
+            description: 'Sorting plastic bottles and cardboard speeds up evacuation times across Osogbo Area!',
         },
         {
             id: 2,

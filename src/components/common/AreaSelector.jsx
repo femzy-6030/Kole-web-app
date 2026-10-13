@@ -1,13 +1,13 @@
-// src/components/common/ClusterSelector.jsx
+// src/components/common/AreaSelector.jsx
 import React, { useState } from 'react';
 import { MapPin, Navigation, Loader2, Check } from 'lucide-react';
 
-export default function ClusterSelector({ selectedCluster, onClusterChange }) {
+export default function AreaSelector({ selectedArea, onAreaChange }) {
     const [isLocating, setIsLocating] = useState(false);
     const [isCustom, setIsCustom] = useState(false);
-    const [customCluster, setCustomCluster] = useState('');
+    const [customArea, setCustomArea] = useState('');
 
-    const predefinedClusters = ['Oke-Fia', 'Alekuwodo', 'GRA', 'Ogo-Oluwa', 'Old Garage'];
+    const predefinedArea = ['Oke-Fia', 'Alekuwodo', 'GRA', 'Ogo-Oluwa', 'Old Garage'];
 
     // GPS Auto-Detection Handler
     const handleDetectLocation = () => {
@@ -22,18 +22,18 @@ export default function ClusterSelector({ selectedCluster, onClusterChange }) {
             (position) => {
                 const { latitude, longitude } = position.coords;
 
-                // Simulating reverse-geocoding resolution to nearest Osogbo cluster
+                // Simulating reverse-geocoding resolution to nearest Osogbo Area
                 setTimeout(() => {
                     setIsLocating(false);
-                    // Defaulting to auto-detected cluster based on mockup coordinates
-                    const detectedCluster = 'Oke-Fia';
-                    onClusterChange(detectedCluster);
+                    // Defaulting to auto-detected Area based on mockup coordinates
+                    const detectedArea = 'Oke-Fia';
+                    onAreaChange(detectedArea);
                     setIsCustom(false);
                 }, 1200);
             },
             (error) => {
                 setIsLocating(false);
-                alert('Unable to retrieve location. Please type or select your cluster manually.');
+                alert('Unable to retrieve location. Please type or select your Area manually.');
             },
             { timeout: 10000, enableHighAccuracy: true }
         );
@@ -41,8 +41,8 @@ export default function ClusterSelector({ selectedCluster, onClusterChange }) {
 
     const handleCustomSubmit = (e) => {
         e.preventDefault();
-        if (customCluster.trim()) {
-            onClusterChange(customCluster.trim());
+        if (customArea.trim()) {
+            onAreaChange(customArea.trim());
         }
     };
 
@@ -50,7 +50,7 @@ export default function ClusterSelector({ selectedCluster, onClusterChange }) {
         <div className="space-y-2.5">
             <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                    Operating Cluster / Location
+                    Operating Area / Location
                 </label>
 
                 {/* GPS Quick Detect Trigger */}
@@ -77,17 +77,17 @@ export default function ClusterSelector({ selectedCluster, onClusterChange }) {
                     <div className="relative flex-1">
                         <MapPin size={18} className="absolute left-3.5 top-3.5 text-brand-primary" />
                         <select
-                            value={selectedCluster}
+                            value={selectedArea}
                             onChange={(e) => {
                                 if (e.target.value === 'OTHER') {
                                     setIsCustom(true);
                                 } else {
-                                    onClusterChange(e.target.value);
+                                    onAreaChange(e.target.value);
                                 }
                             }}
                             className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 text-xs font-bold focus:outline-none focus:border-brand-primary appearance-none"
                         >
-                            {predefinedClusters.map((c) => (
+                            {predefinedArea.map((c) => (
                                 <option key={c} value={c}>{c} Zone</option>
                             ))}
                             <option value="OTHER">+ Type New / Custom Location...</option>
@@ -99,8 +99,8 @@ export default function ClusterSelector({ selectedCluster, onClusterChange }) {
                     <input
                         type="text"
                         placeholder="Type your area or district name..."
-                        value={customCluster}
-                        onChange={(e) => setCustomCluster(e.target.value)}
+                        value={customArea}
+                        onChange={(e) => setCustomArea(e.target.value)}
                         className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 text-xs font-bold focus:outline-none focus:border-brand-primary"
                         autoFocus
                     />

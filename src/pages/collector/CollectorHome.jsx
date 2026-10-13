@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import CollectorNavbar from '../../components/layout/CollectorNavbar';
-import ClusterShiftModal from '../../components/collector/ClusterShiftModal';
+import AreahiftModal from '../../components/collector/AreahiftModal';
 import CollectorFeedHeader from '../../components/awareness/CollectorFeedHeader';
 import ProofUploadModal from '../../components/collector/ProofUploadModal';
 import Button from '../../components/common/Button';
@@ -8,16 +8,16 @@ import { CheckCircle } from 'lucide-react';
 
 export default function CollectorHome() {
     const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' | 'wallet'
-    const [activeCluster, setActiveCluster] = useState('Oke-Fia');
+    const [activeArea, setActiveArea] = useState('Oke-Fia');
     const [showShiftModal, setShowShiftModal] = useState(false);
     const [activeProofJobId, setActiveProofJobId] = useState(null);
 
-    // Mock Cluster Jobs
+    // Mock Area Jobs
     const [jobs, setJobs] = useState([
         {
             id: 'KL-904102',
             address: 'Oke-Fia Junction, Near Station Road',
-            cluster: 'Oke-Fia',
+            Area: 'Oke-Fia',
             volume: 'Medium (3-5 Bags)',
             status: 'PENDING',
             customerPaid: 0.0,
@@ -27,7 +27,7 @@ export default function CollectorHome() {
         {
             id: 'KL-904108',
             address: 'Alekuwodo Road, Osogbo',
-            cluster: 'Oke-Fia',
+            Area: 'Oke-Fia',
             volume: 'Small (1-2 Bags)',
             status: 'IN_TRANSIT',
             customerPaid: 0.0,
@@ -61,15 +61,15 @@ export default function CollectorHome() {
             <CollectorNavbar
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
-                activeCluster={activeCluster}
-                onChangeCluster={() => setShowShiftModal(true)}
+                activeArea={activeArea}
+                onChangeArea={() => setShowShiftModal(true)}
             />
 
             {showShiftModal && (
-                <ClusterShiftModal
-                    currentCluster={activeCluster}
-                    onConfirmCluster={(newCluster) => {
-                        setActiveCluster(newCluster);
+                <AreahiftModal
+                    currentArea={activeArea}
+                    onConfirmArea={(newArea) => {
+                        setActiveArea(newArea);
                         setShowShiftModal(false);
                     }}
                     onClose={() => setShowShiftModal(false)}
@@ -89,20 +89,20 @@ export default function CollectorHome() {
                 {/* JOBS TAB */}
                 {activeTab === 'jobs' && (
                     <>
-                        <CollectorFeedHeader clusterName={activeCluster} />
+                        <CollectorFeedHeader AreaName={activeArea} />
 
                         <div className="flex items-center justify-between pt-2">
                             <div>
-                                <h2 className="text-base font-black text-slate-800">Cluster Pickup Feed</h2>
-                                <p className="text-[11px] text-slate-500">Showing requests for <strong>{activeCluster}</strong>[cite: 1, 2].</p>
+                                <h2 className="text-base font-black text-slate-800">Area Pickup Feed</h2>
+                                <p className="text-[11px] text-slate-500">Showing requests for <strong>{activeArea}</strong>[cite: 1, 2].</p>
                             </div>
                             <span className="text-xs bg-emerald-100 text-brand-primary px-2.5 py-1 rounded-full font-bold">
-                                {jobs.filter(j => j.cluster === activeCluster).length} Active
+                                {jobs.filter(j => j.Area === activeArea).length} Active
                             </span>
                         </div>
 
                         <div className="space-y-3">
-                            {jobs.filter(j => j.cluster === activeCluster).map((job) => (
+                            {jobs.filter(j => j.Area === activeArea).map((job) => (
                                 <div key={job.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
                                     <div className="flex justify-between items-start">
                                         <div>
@@ -110,8 +110,8 @@ export default function CollectorHome() {
                                             <p className="text-xs font-bold text-slate-800 mt-0.5">{job.address}</p>
                                         </div>
                                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${job.status === 'COMPLETED' ? 'bg-emerald-100 text-brand-primary' :
-                                                job.status === 'IN_TRANSIT' ? 'bg-amber-100 text-amber-800' :
-                                                    'bg-slate-100 text-slate-600'
+                                            job.status === 'IN_TRANSIT' ? 'bg-amber-100 text-amber-800' :
+                                                'bg-slate-100 text-slate-600'
                                             }`}>
                                             {job.status}
                                         </span>

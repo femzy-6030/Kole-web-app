@@ -24,7 +24,7 @@ export default function Login({ onSwitchToRegister }) {
                 id: `USR-${Math.floor(1000 + Math.random() * 9000)}`,
                 fullName: role === 'organization' ? 'Oroki Hub Operations' : 'Olayinka Oluwafemi',
                 phoneNumber: phoneNumber || '08012345678',
-                cluster: 'Oke-Fia',
+                Area: 'Oke-Fia',
             };
             login(dummyUser, role, rememberMe);
         }, 800);
@@ -47,8 +47,8 @@ export default function Login({ onSwitchToRegister }) {
                     type="button"
                     onClick={() => setRole('customer')}
                     className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${role === 'customer'
-                            ? 'bg-white text-brand-primary shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
+                        ? 'bg-white text-brand-primary shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
                         }`}
                 >
                     <User size={16} />
@@ -59,8 +59,8 @@ export default function Login({ onSwitchToRegister }) {
                     type="button"
                     onClick={() => setRole('organization')}
                     className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${role === 'organization'
-                            ? 'bg-white text-brand-primary shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
+                        ? 'bg-white text-brand-primary shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
                         }`}
                 >
                     <Building2 size={16} />

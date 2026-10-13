@@ -23,7 +23,7 @@ function CampaignManager() {
         <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-3">
             <div className="flex items-center gap-2 text-brand-primary">
                 <Megaphone size={18} />
-                <h3 className="font-black text-slate-800 text-sm">Cluster Announcements & Campaigns</h3>
+                <h3 className="font-black text-slate-800 text-sm">Area Announcements & Campaigns</h3>
             </div>
             <p className="text-xs text-slate-500 font-medium leading-relaxed">
                 Manage live awareness carousel cards and pop-up notifications for households and commercial hubs in Osogbo.
@@ -47,7 +47,7 @@ export default function AdminDashboard() {
                     <h2 className="text-2xl font-black text-slate-800">14 Operators</h2>
                 </div>
                 <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm space-y-1">
-                    <p className="font-bold text-slate-400 uppercase text-[10px]">Active Clusters</p>
+                    <p className="font-bold text-slate-400 uppercase text-[10px]">Active Area</p>
                     <h2 className="text-2xl font-black text-emerald-600">6 Zones</h2>
                 </div>
             </div>

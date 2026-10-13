@@ -48,8 +48,8 @@ export default function PaymentModal({ orderDetails, onPaymentSuccess, onClose }
                 {/* Receipt Breakdown Card */}
                 <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2.5">
                     <div className="flex justify-between text-xs">
-                        <span className="text-slate-500 font-medium">Cluster Zone:</span>
-                        <span className="font-bold text-slate-800">{orderDetails?.cluster || 'Oke-Fia'}</span>
+                        <span className="text-slate-500 font-medium">Area Zone:</span>
+                        <span className="font-bold text-slate-800">{orderDetails?.Area || 'Oke-Fia'}</span>
                     </div>
                     <div className="flex justify-between text-xs">
                         <span className="text-slate-500 font-medium">Waste Size:</span>
@@ -68,7 +68,7 @@ export default function PaymentModal({ orderDetails, onPaymentSuccess, onClose }
                         <CheckCircle2 size={20} className="text-brand-primary shrink-0" />
                         <div className="text-xs">
                             <p className="font-bold text-brand-primary">Zero-Cost Service Active</p>
-                            <p className="text-slate-500 text-[11px]">No charge required for this cluster request.</p>
+                            <p className="text-slate-500 text-[11px]">No charge required for this Area request.</p>
                         </div>
                     </div>
                 ) : (

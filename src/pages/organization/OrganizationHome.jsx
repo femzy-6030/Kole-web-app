@@ -121,7 +121,7 @@ export default function OrganizationHome({ onOpenSettings }) {
                         </span>
                         <h2 className="text-xl font-black mt-1">{user?.orgName || user?.fullName || 'Oroki Innovation Hub'}</h2>
                         <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                            <MapPin size={13} className="text-brand-primary" /> {user?.cluster || 'Oke-Fia'} Cluster Zone
+                            <MapPin size={13} className="text-brand-primary" /> {user?.Area || 'Oke-Fia'} Area Zone
                         </p>
                     </div>
 
@@ -263,7 +263,7 @@ export default function OrganizationHome({ onOpenSettings }) {
                         </div>
 
                         <p className="text-slate-500 text-[11px]">
-                            An emergency heavy truck will be assigned from the <strong>{user?.cluster || 'Oke-Fia'}</strong> cluster queue.
+                            An emergency heavy truck will be assigned from the <strong>{user?.Area || 'Oke-Fia'}</strong> Area queue.
                         </p>
 
                         <Button
