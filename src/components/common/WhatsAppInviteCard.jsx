@@ -29,7 +29,7 @@ export default function WhatsAppInviteCard({ userId, userCluster = 'Oke-Fia' }) 
                         Invite 3 Neighbors, Get 15% Off
                     </h3>
                     <p className="text-emerald-200 text-[11px] leading-relaxed">
-                        Bring KÓLẸ̀ to more streets in <span className="font-bold text-white">{userCluster}</span>. Unlock priority launch status & discount vouchers!
+                        Bring KÓLẸ̀ to more streets in <span className="font-bold text-white">Osogbo</span>. Unlock priority launch status & discount vouchers!
                     </p>
                 </div>
             </div>

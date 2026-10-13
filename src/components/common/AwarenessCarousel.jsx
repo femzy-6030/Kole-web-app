@@ -66,7 +66,7 @@ export default function AwarenessCarousel({ customItems }) {
             iconBg: 'bg-blue-600 text-white',
             border: 'border-blue-200/60',
             title: 'Extended Evening Pickups',
-            description: 'Truck dispatch teams in Oke-Fia and Sabo now operate extended night clearance hours until 8:00 PM.',
+            description: 'Truck dispatch teams -Fia and Sabo now operate extended night clearance hours until 8:00 PM.',
         },
         {
             id: 3,
