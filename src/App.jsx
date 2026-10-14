@@ -27,6 +27,7 @@ import {
 // ==========================================
 // SECURITY AUTO-LOCK MODAL
 // ==========================================
+function AppLockModal({ correctPin = '1234', onUnlock }) {
 const [pin, setPin] = useState('');
 const [error, setError] = useState(false);
 
@@ -420,7 +421,7 @@ export default function App() {
     }
 
     // 4. ORGANIZATION ROLE
-     === 'organization') {
+    if (role === 'organization') {
         return (
             <div className="min-h-screen bg-slate-100 p-4">
                 <AnnouncementModal isOpen={showAnnouncement} onClose={() => setShowAnnouncement(false)} announcement={activeAnnouncement} />
