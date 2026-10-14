@@ -8,6 +8,7 @@ import CustomerNavbar from './components/layout/CustomerNavbar';
 import OrganizationHome from './pages/organization/OrganizationHome';
 import OrganizationProfileView from './components/organization/OrganizationProfileView';
 import CollectorOnboarding from './pages/collector/CollectorOnboarding';
+import CollectorDispatchQueue from './components/collector/CollectorDispatchQueue';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AreaSelector from "./components/common/AreaSelector";
 import { AnnouncementModal } from './components/common/AwarenessCarousel';
@@ -91,7 +92,7 @@ export default function App() {
 
     // Auth View State: 'login' | 'register' | 'collector-onboard'
     const [authMode, setAuthMode] = useState('login');
-    const [selectedRole, setSelectedRole] = useState('customer'); // 'customer' | 'organization'
+    const [selectedRole, setSelectedRole] = useState('customer'); // 'customer' | 'organization' | 'collector'
 
     // Announcement Pop-Up State
     const [showAnnouncement, setShowAnnouncement] = useState(false);
@@ -155,6 +156,13 @@ export default function App() {
                     address: address || 'Plot 4, Station Road, Opp. Union Bank, Oke-Fia, Osogbo',
                     pickupBay: pickupBay || 'Rear Loading Dock near Generator House',
                 };
+            } else if (selectedRole === 'collector') {
+                userData = {
+                    id: `COL-${Math.floor(1000 + Math.random() * 9000)}`,
+                    fullName: fullName || 'Collector Operator',
+                    phoneNumber: phoneNumber || '09014603028',
+                    Area: Area,
+                };
             } else {
                 userData = {
                     id: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -182,7 +190,7 @@ export default function App() {
                         onClick={() => setAuthMode('login')}
                         className="text-slate-300 hover:text-white font-bold underline cursor-pointer"
                     >
-                        ← Back to Customer Login
+                        ← Back to Login
                     </button>
                 </div>
 
@@ -219,31 +227,43 @@ export default function App() {
                         <button
                             type="button"
                             onClick={() => setSelectedRole('customer')}
-                            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${selectedRole === 'customer'
+                            className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedRole === 'customer'
                                 ? 'bg-white text-brand-primary shadow-sm'
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
-                            <User size={16} />
+                            <User size={14} />
                             <span>Customer</span>
                         </button>
 
                         <button
                             type="button"
                             onClick={() => setSelectedRole('organization')}
-                            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${selectedRole === 'organization'
+                            className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedRole === 'organization'
                                 ? 'bg-white text-brand-primary shadow-sm'
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
-                            <Building2 size={16} />
-                            <span>Organization</span>
+                            <Building2 size={14} />
+                            <span>Org</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setSelectedRole('collector')}
+                            className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedRole === 'collector'
+                                ? 'bg-white text-brand-primary shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                        >
+                            <Truck size={14} />
+                            <span>Collector</span>
                         </button>
                     </div>
 
                     {/* Form */}
                     <form onSubmit={handleAuthSubmit} className="space-y-4 text-xs">
-                        {authMode === 'register' && (
+                        {authMode === 'register' && selectedRole !== 'collector' && (
                             <>
                                 {selectedRole === 'customer' ? (
                                     <div>
@@ -355,8 +375,8 @@ export default function App() {
 
                         <Button type="submit" isLoading={isLoading} className="w-full py-3.5 text-sm font-bold mt-2">
                             {authMode === 'login'
-                                ? `Sign In as ${selectedRole === 'organization' ? 'Organization' : 'Customer'}`
-                                : `Create ${selectedRole === 'organization' ? 'Organization' : 'Customer'} Account`
+                                ? `Sign In as ${selectedRole === 'organization' ? 'Organization' : selectedRole === 'collector' ? 'Collector' : 'Customer'}`
+                                : `Create Account`
                             }
                         </Button>
                     </form>
@@ -433,7 +453,31 @@ export default function App() {
         );
     }
 
-    // 5. CUSTOMER ROLE
+    // 5. COLLECTOR ROLE (NEWLY ADDED QUEUE HANDSHAKE VIEW)
+    if (role === 'collector') {
+        return (
+            <div className="min-h-screen bg-slate-100 p-4">
+                {isAppLocked && <AppLockModal correctPin="1234" onUnlock={() => setIsAppLocked(false)} />}
+
+                {/* Top Header Bar with Logout option */}
+                <div className="max-w-lg mx-auto mb-4 flex justify-between items-center bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200">
+                    <span className="font-black text-slate-800 text-xs flex items-center gap-1.5">
+                        <Truck size={16} className="text-brand-primary" /> Collector Fleet Portal
+                    </span>
+                    <button
+                        onClick={() => useAuthStore.getState().logout()}
+                        className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
+                    >
+                        Sign Out
+                    </button>
+                </div>
+
+                <CollectorDispatchQueue />
+            </div>
+        );
+    }
+
+    // 6. CUSTOMER ROLE
     return (
         <div className="min-h-screen bg-slate-100 p-4 pb-20">
             {isAppLocked && <AppLockModal correctPin="1234" onUnlock={() => setIsAppLocked(false)} />}
