@@ -59,10 +59,22 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
         setTimeout(() => {
             setIsSubmitting(false);
             setIsSuccess(true);
+            const userData = {
+                id: `COL-${Math.floor(1000 + Math.random() * 9000)}`,
+                fullName: formData.collectorName.trim() || 'Collector Operator',
+                phoneNumber: formData.phone.trim() || '',
+                Area: formData.Area || 'Oke-Fia',
+                bankName: formData.bankName,
+                accountNumber: formData.accountNumber,
+                accountName: formData.accountName,
+                vehicleCount: formData.vehicleCount,
+                workerCount: formData.workerCount,
+            };
+            useAuthStore.getState().login(userData, 'collector', true);
             if (onOnboardingComplete) {
-                onOnboardingComplete(formData);
+                onOnboardingComplete(userData);
             }
-        }, 1200);
+        }, 800);
     };
 
     // 1. PARTNER ACCESS KEY GATE (UNLOCKED VERIFICATION STEP)

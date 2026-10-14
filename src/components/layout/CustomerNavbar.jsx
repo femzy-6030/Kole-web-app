@@ -10,7 +10,7 @@ export default function CustomerNavbar({ activeTab, setActiveTab }) {
     ];
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 max-w-lg mx-auto shadow-lg">
+        <nav className="fixed md:sticky bottom-0 left-0 right-0 w-full max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 shadow-lg md:rounded-b-[3rem] mt-auto">
             <div className="flex justify-around items-center h-16 px-4">
                 {navItems.map((item) => {
                     const Icon = item.icon;

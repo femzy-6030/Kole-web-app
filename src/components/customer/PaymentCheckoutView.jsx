@@ -115,17 +115,17 @@ export default function PaymentCheckoutView({ pickupRequest, onPaymentSuccess })
                 <div className="space-y-2 text-slate-700 font-medium">
                     <div className="flex items-center gap-2.5">
                         <User size={15} className="text-slate-400 shrink-0" />
-                        <span className="font-bold text-slate-800">{user?.fullName || 'Olayinka Oluwafemi'}</span>
+                        <span className="font-bold text-slate-800">{user?.fullName || 'Customer Account'}</span>
                     </div>
 
                     <div className="flex items-center gap-2.5">
                         <Phone size={15} className="text-slate-400 shrink-0" />
-                        <span>{user?.phoneNumber || '09014603028'}</span>
+                        <span>{user?.phoneNumber || 'No phone number'}</span>
                     </div>
 
                     <div className="flex items-center gap-2.5">
                         <Mail size={15} className="text-slate-400 shrink-0" />
-                        <span>{user?.email || 'olayinka@kole.ng'}</span>
+                        <span>{user?.email || (user?.fullName ? `${user.fullName.toLowerCase().replace(/\s+/g, '')}@kole.ng` : 'customer@kole.ng')}</span>
                     </div>
 
                     <div className="pt-2 border-t border-slate-200/60 flex items-start gap-2.5">

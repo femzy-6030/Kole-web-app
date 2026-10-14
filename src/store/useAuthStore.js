@@ -6,7 +6,7 @@ export const useAuthStore = create(
     persist(
         (set) => ({
             user: null,
-            role: 'customer', // 'customer' | 'organization' | 'admin'
+            role: 'customer', // 'customer' | 'organization' | 'collector' | 'admin'
             isAuthenticated: false,
             rememberMe: true,
 

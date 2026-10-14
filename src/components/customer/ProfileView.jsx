@@ -23,10 +23,10 @@ export default function ProfileView() {
     const [Area, setArea] = useState(user?.Area || 'Oke-Fia');
 
     // Editable contact states
-    const [phone, setPhone] = useState(user?.phoneNumber || '09014603028');
+    const [phone, setPhone] = useState(user?.phoneNumber || '');
     const [isEditingPhone, setIsEditingPhone] = useState(false);
 
-    const [email, setEmail] = useState(user?.email || 'olayinka@kole.ng');
+    const [email, setEmail] = useState(user?.email || (user?.fullName ? `${user.fullName.toLowerCase().replace(/\s+/g, '')}@kole.ng` : 'customer@kole.ng'));
     const [isEditingEmail, setIsEditingEmail] = useState(false);
 
     return (
@@ -36,7 +36,7 @@ export default function ProfileView() {
             <div className="bg-white rounded-3xl p-6 border border-slate-200 text-center space-y-3 shadow-sm">
                 <div className="relative w-20 h-20 mx-auto">
                     <div className="w-20 h-20 bg-emerald-50 text-brand-primary rounded-full flex items-center justify-center text-2xl font-black border-2 border-brand-primary">
-                        {user?.fullName ? user.fullName[0] : 'O'}
+                        {user?.fullName ? user.fullName[0].toUpperCase() : 'U'}
                     </div>
                     <span className="absolute bottom-0 right-0 bg-brand-primary text-white p-1 rounded-full border-2 border-white" title="Verified Customer">
                         <ShieldCheck size={14} />
@@ -44,7 +44,7 @@ export default function ProfileView() {
                 </div>
 
                 <div>
-                    <h2 className="text-lg font-black text-slate-800">{user?.fullName || 'Olayinka Oluwafemi'}</h2>
+                    <h2 className="text-lg font-black text-slate-800">{user?.fullName || 'Valued Customer'}</h2>
                     <p className="text-xs text-slate-400 font-bold mt-0.5">Verified Customer Account</p>
                 </div>
             </div>
