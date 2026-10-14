@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuthStore } from './store/useAuthStore';
 import CustomerHome from './pages/customer/CustomerHome';
 import PaymentCheckoutView from './components/customer/PaymentCheckoutView';
@@ -20,69 +20,9 @@ import {
     Lock,
     Phone,
     ArrowLeft,
-    ShieldAlert,
-    Truck
+    Truck,
+    ShieldCheck
 } from 'lucide-react';
-
-// ==========================================
-// SECURITY AUTO-LOCK MODAL
-// ==========================================
-function AppLockModal({ correctPin = '1234', onUnlock }) {
-const [pin, setPin] = useState('');
-const [error, setError] = useState(false);
-
-const handleUnlock = (e) => {
-    e.preventDefault();
-    if (pin === correctPin || pin.length === 4) {
-        onUnlock();
-    } else {
-        setError(true);
-        setPin('');
-    }
-};
-
-return (
-    <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-5 shadow-2xl border border-slate-100">
-            <div className="w-16 h-16 bg-emerald-100 text-brand-primary rounded-3xl flex items-center justify-center mx-auto shadow-inner">
-                <Lock size={32} />
-            </div>
-
-            <div>
-                <h2 className="text-lg font-black text-slate-800">App Locked</h2>
-                <p className="text-xs text-slate-500 font-medium mt-1">
-                    Enter your 4-digit PIN to access KÓLẸ̀
-                </p>
-            </div>
-
-            <form onSubmit={handleUnlock} className="space-y-4">
-                <input
-                    type="password"
-                    maxLength={4}
-                    placeholder="••••"
-                    value={pin}
-                    onChange={(e) => {
-                        setPin(e.target.value);
-                        setError(false);
-                    }}
-                    autoFocus
-                    className="w-full text-center tracking-widest text-xl font-black py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-primary"
-                />
-
-                {error && (
-                    <p className="text-xs font-bold text-rose-500 flex items-center justify-center gap-1">
-                        <ShieldAlert size={14} /> Incorrect PIN. Try again.
-                    </p>
-                )}
-
-                <Button type="submit" className="w-full py-3.5 font-bold text-xs uppercase tracking-wider">
-                    Unlock App
-                </Button>
-            </form>
-        </div>
-    </div>
-);
-}
 
 // ==========================================
 // MAIN APP ENTRY POINT
@@ -92,7 +32,7 @@ export default function App() {
 
     // Auth View State: 'login' | 'register' | 'collector-onboard'
     const [authMode, setAuthMode] = useState('login');
-    const [selectedRole, setSelectedRole] = useState('customer'); // 'customer' | 'organization' | 'collector'
+    const [selectedRole, setSelectedRole] = useState('customer'); // 'customer' | 'organization' | 'collector' | 'admin'
 
     // Announcement Pop-Up State
     const [showAnnouncement, setShowAnnouncement] = useState(false);
@@ -114,9 +54,6 @@ export default function App() {
     const [orgName, setOrgName] = useState('');
     const [officerName, setOfficerName] = useState('');
     const [pickupBay, setPickupBay] = useState('');
-
-    // Security Auto-Lock State
-    const [isAppLocked, setIsAppLocked] = useState(false);
 
     // Navigation State for Customer
     const [customerActiveTab, setCustomerActiveTab] = useState('home');
@@ -150,6 +87,12 @@ export default function App() {
                     fullName: fullName || 'Collector Operator',
                     phoneNumber: phoneNumber || '09014603028',
                     Area: Area,
+                };
+            } else if (selectedRole === 'admin') {
+                userData = {
+                    id: 'ADM-001',
+                    fullName: 'System Admin',
+                    phoneNumber: phoneNumber || '09014603028',
                 };
             } else {
                 userData = {
@@ -247,11 +190,23 @@ export default function App() {
                             <Truck size={14} />
                             <span>Collector</span>
                         </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setSelectedRole('admin')}
+                            className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedRole === 'admin'
+                                ? 'bg-slate-900 text-white shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                        >
+                            <ShieldCheck size={14} />
+                            <span>Admin</span>
+                        </button>
                     </div>
 
                     {/* Form */}
                     <form onSubmit={handleAuthSubmit} className="space-y-4 text-xs">
-                        {authMode === 'register' && selectedRole !== 'collector' && (
+                        {authMode === 'register' && selectedRole !== 'collector' && selectedRole !== 'admin' && (
                             <>
                                 {selectedRole === 'customer' ? (
                                     <div>
@@ -363,7 +318,7 @@ export default function App() {
 
                         <Button type="submit" isLoading={isLoading} className="w-full py-3.5 text-sm font-bold mt-2">
                             {authMode === 'login'
-                                ? `Sign In as ${selectedRole === 'organization' ? 'Organization' : selectedRole === 'collector' ? 'Collector' : 'Customer'}`
+                                ? `Sign In as ${selectedRole === 'organization' ? 'Organization' : selectedRole === 'collector' ? 'Collector' : selectedRole === 'admin' ? 'Admin' : 'Customer'}`
                                 : `Create Account`
                             }
                         </Button>
@@ -465,7 +420,6 @@ export default function App() {
     // 6. CUSTOMER ROLE
     return (
         <div className="min-h-screen bg-slate-100 p-4 pb-20">
-            {isAppLocked && <AppLockModal correctPin="1234" onUnlock={() => setIsAppLocked(false)} />}
             <AnnouncementModal isOpen={showAnnouncement} onClose={() => setShowAnnouncement(false)} announcement={activeAnnouncement} />
 
             {customerActiveTab === 'checkout' && (
