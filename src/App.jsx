@@ -27,61 +27,60 @@ import {
 // ==========================================
 // SECURITY AUTO-LOCK MODAL
 // ==========================================
-function AppLockModal({ correctPin = '1234', onUnlock }) {
-    const [pin, setPin] = useState('');
-    const [error, setError] = useState(false);
+const [pin, setPin] = useState('');
+const [error, setError] = useState(false);
 
-    const handleUnlock = (e) => {
-        e.preventDefault();
-        if (pin === correctPin || pin.length === 4) {
-            onUnlock();
-        } else {
-            setError(true);
-            setPin('');
-        }
-    };
+const handleUnlock = (e) => {
+    e.preventDefault();
+    if (pin === correctPin || pin.length === 4) {
+        onUnlock();
+    } else {
+        setError(true);
+        setPin('');
+    }
+};
 
-    return (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-5 shadow-2xl border border-slate-100">
-                <div className="w-16 h-16 bg-emerald-100 text-brand-primary rounded-3xl flex items-center justify-center mx-auto shadow-inner">
-                    <Lock size={32} />
-                </div>
-
-                <div>
-                    <h2 className="text-lg font-black text-slate-800">App Locked</h2>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                        Enter your 4-digit PIN to access KÓLẸ̀
-                    </p>
-                </div>
-
-                <form onSubmit={handleUnlock} className="space-y-4">
-                    <input
-                        type="password"
-                        maxLength={4}
-                        placeholder="••••"
-                        value={pin}
-                        onChange={(e) => {
-                            setPin(e.target.value);
-                            setError(false);
-                        }}
-                        autoFocus
-                        className="w-full text-center tracking-widest text-xl font-black py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-primary"
-                    />
-
-                    {error && (
-                        <p className="text-xs font-bold text-rose-500 flex items-center justify-center gap-1">
-                            <ShieldAlert size={14} /> Incorrect PIN. Try again.
-                        </p>
-                    )}
-
-                    <Button type="submit" className="w-full py-3.5 font-bold text-xs uppercase tracking-wider">
-                        Unlock App
-                    </Button>
-                </form>
+return (
+    <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-5 shadow-2xl border border-slate-100">
+            <div className="w-16 h-16 bg-emerald-100 text-brand-primary rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+                <Lock size={32} />
             </div>
+
+            <div>
+                <h2 className="text-lg font-black text-slate-800">App Locked</h2>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                    Enter your 4-digit PIN to access KÓLẸ̀
+                </p>
+            </div>
+
+            <form onSubmit={handleUnlock} className="space-y-4">
+                <input
+                    type="password"
+                    maxLength={4}
+                    placeholder="••••"
+                    value={pin}
+                    onChange={(e) => {
+                        setPin(e.target.value);
+                        setError(false);
+                    }}
+                    autoFocus
+                    className="w-full text-center tracking-widest text-xl font-black py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-primary"
+                />
+
+                {error && (
+                    <p className="text-xs font-bold text-rose-500 flex items-center justify-center gap-1">
+                        <ShieldAlert size={14} /> Incorrect PIN. Try again.
+                    </p>
+                )}
+
+                <Button type="submit" className="w-full py-3.5 font-bold text-xs uppercase tracking-wider">
+                    Unlock App
+                </Button>
+            </form>
         </div>
-    );
+    </div>
+);
 }
 
 // ==========================================
@@ -124,18 +123,6 @@ export default function App() {
 
     // Organization Settings Toggle
     const [showOrgSettings, setShowOrgSettings] = useState(false);
-
-    // Auto-lock when user minimizes app
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (document.hidden && isAuthenticated) {
-                setIsAppLocked(true);
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [isAuthenticated]);
 
     const handleAuthSubmit = (e) => {
         e.preventDefault();
@@ -433,10 +420,9 @@ export default function App() {
     }
 
     // 4. ORGANIZATION ROLE
-    if (role === 'organization') {
+     === 'organization') {
         return (
             <div className="min-h-screen bg-slate-100 p-4">
-                {isAppLocked && <AppLockModal correctPin="1234" onUnlock={() => setIsAppLocked(false)} />}
                 <AnnouncementModal isOpen={showAnnouncement} onClose={() => setShowAnnouncement(false)} announcement={activeAnnouncement} />
 
                 {showOrgSettings ? (
@@ -457,8 +443,6 @@ export default function App() {
     if (role === 'collector') {
         return (
             <div className="min-h-screen bg-slate-100 p-4">
-                {isAppLocked && <AppLockModal correctPin="1234" onUnlock={() => setIsAppLocked(false)} />}
-
                 {/* Top Header Bar with Logout option */}
                 <div className="max-w-lg mx-auto mb-4 flex justify-between items-center bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200">
                     <span className="font-black text-slate-800 text-xs flex items-center gap-1.5">
