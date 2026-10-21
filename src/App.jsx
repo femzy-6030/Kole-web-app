@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from './store/useAuthStore';
 import CustomerHome from './pages/customer/CustomerHome';
+import PaymentPage from './components/PaymentPage';
 import PaymentCheckoutView from './components/customer/PaymentCheckoutView';
 import ProfileView from './components/customer/ProfileView';
 import CustomerNavbar from './components/layout/CustomerNavbar';
@@ -76,7 +77,15 @@ export default function App() {
     const [pickupBay, setPickupBay] = useState('');
 
     // Navigation State for Customer
-    const [customerActiveTab, setCustomerActiveTab] = useState('home');
+    const [customerActiveTab, setCustomerActiveTab] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('reference') || params.get('trxref')) {
+                return 'payments';
+            }
+        }
+        return 'home';
+    });
     const [checkoutData, setCheckoutData] = useState(null);
 
     // Organization Settings Toggle
@@ -543,7 +552,7 @@ export default function App() {
             <div className="flex-1 bg-slate-100 p-4 pb-24 flex flex-col">
                 <AnnouncementModal isOpen={showAnnouncement} onClose={() => setShowAnnouncement(false)} announcement={activeAnnouncement} />
 
-                {customerActiveTab === 'checkout' && (
+                {customerActiveTab === 'checkout' && checkoutData?.planKey === 'one-time' && (
                     <div className="w-full mb-3">
                         <button onClick={() => setCustomerActiveTab('home')} className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
                             <ArrowLeft size={16} /> Back to Customer Dashboard
@@ -556,11 +565,15 @@ export default function App() {
                 )}
 
                 {customerActiveTab === 'checkout' && (
-                    <PaymentCheckoutView pickupRequest={checkoutData} onPaymentSuccess={() => setCustomerActiveTab('home')} />
+                    checkoutData?.planKey === 'one-time' ? (
+                        <PaymentCheckoutView pickupRequest={checkoutData} onPaymentSuccess={() => setCustomerActiveTab('home')} />
+                    ) : (
+                        <PaymentPage checkoutData={checkoutData} onPaymentSuccess={() => setCustomerActiveTab('home')} onBack={() => setCustomerActiveTab('home')} />
+                    )
                 )}
 
                 {customerActiveTab === 'payments' && (
-                    <PaymentCheckoutView pickupRequest={{ title: 'Household Subscription Plan', amount: '₦4,500 / mo' }} onPaymentSuccess={() => setCustomerActiveTab('home')} />
+                    <PaymentPage checkoutData={{ planKey: 'monthly', title: 'Standard Household Monthly Plan' }} onPaymentSuccess={() => setCustomerActiveTab('home')} onBack={() => setCustomerActiveTab('home')} />
                 )}
                 {customerActiveTab === 'profile' && <ProfileView />}
 

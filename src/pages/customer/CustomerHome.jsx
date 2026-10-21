@@ -21,7 +21,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
     const { user, updateUserProfile, activeRequests } = useAuthStore();
     // ... existing states ...    const { user, updateUserProfile, activeRequests } = useAuthStore();
     const [selectedArea, setSelectedArea] = useState(user?.Area || user?.area || 'Oke-Fia');
-    const [selectedPlan, setSelectedPlan] = useState('one-time');
+    const [selectedPlan, setSelectedPlan] = useState('monthly');
 
     // Out-of-Zone Waitlist Modal State
     const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
@@ -32,17 +32,17 @@ export default function CustomerHome({ onNavigateToCheckout }) {
         'one-time': {
             title: 'One-Time SOS Pickup',
             price: '₦1,500',
-            desc: 'Pay per single dispatch request'
+            desc: 'Pay per single emergency dispatch request'
         },
         'weekly': {
-            title: 'Weekly Household Pass',
-            price: '₦4,500 / mo',
-            desc: '2 scheduled pickups every week'
+            title: 'Weekly Pass',
+            price: '₦2,500 / wk',
+            desc: 'Includes ₦500 fee, renewable weekly'
         },
         'monthly': {
-            title: 'Monthly Unlimited Subscription',
-            price: '₦8,000 / mo',
-            desc: 'Unlimited waste dispatches'
+            title: 'Household Monthly Plan',
+            price: 'From ₦10,000 / mo',
+            desc: '₦2,500/wk × 4 weeks with volume upgrades'
         },
     };
 
@@ -70,12 +70,12 @@ export default function CustomerHome({ onNavigateToCheckout }) {
             return;
         }
 
-        const planDetails = plans[planKey];
+        const planDetails = plans[planKey] || plans['monthly'];
         if (onNavigateToCheckout) {
             onNavigateToCheckout({
                 planKey,
                 title: planDetails.title,
-                amount: planDetails.price, // Fixed: passes dynamic price string (₦1,500, ₦4,500 / mo, etc.)
+                amount: planDetails.price,
                 Area: selectedArea
             });
         }
@@ -145,60 +145,54 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                     </span>
                 </div>
 
-                {/* 3-Column Quick Action Plan Grid */}
-                <div className="grid grid-cols-3 gap-2">
-                    {/* One-Time Plan */}
-                    <div
-                        onClick={() => setSelectedPlan('one-time')}
-                        className={`p-3 rounded-2xl border cursor-pointer transition-all text-center space-y-1 ${selectedPlan === 'one-time'
-                            ? 'border-brand-primary bg-emerald-50/70 ring-2 ring-brand-primary/20 shadow-sm'
-                            : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-                            }`}
-                    >
-                        <div className="p-2 bg-emerald-100/80 text-brand-primary rounded-xl w-fit mx-auto">
-                            <Zap size={16} />
-                        </div>
-                        <p className="font-black text-slate-800 text-[11px]">One-Time</p>
-                        <p className="text-[9px] text-brand-primary font-black leading-tight">{plans['one-time'].price}</p>
-                    </div>
-
+                {/* 2-Column Quick Action Plan Grid (Weekly Pass & Monthly Plan) */}
+                <div className="grid grid-cols-2 gap-3">
                     {/* Weekly Pass */}
                     <div
                         onClick={() => setSelectedPlan('weekly')}
-                        className={`p-3 rounded-2xl border cursor-pointer transition-all text-center space-y-1 ${selectedPlan === 'weekly'
+                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all text-center space-y-1.5 relative overflow-hidden ${selectedPlan === 'weekly'
                             ? 'border-brand-primary bg-emerald-50/70 ring-2 ring-brand-primary/20 shadow-sm'
                             : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
                             }`}
                     >
                         <div className="p-2 bg-emerald-100/80 text-brand-primary rounded-xl w-fit mx-auto">
-                            <Calendar size={16} />
+                            <Calendar size={18} />
                         </div>
-                        <p className="font-black text-slate-800 text-[11px]">Weekly Pass</p>
-                        <p className="text-[9px] text-brand-primary font-black leading-tight">{plans['weekly'].price}</p>
+                        <div>
+                            <p className="font-black text-slate-800 text-xs">Weekly Pass</p>
+                            <p className="text-[10px] text-brand-primary font-black mt-0.5">{plans['weekly'].price}</p>
+                            <p className="text-[9px] text-slate-400 mt-0.5">Renewable weekly</p>
+                        </div>
                     </div>
 
                     {/* Monthly Subscription */}
                     <div
                         onClick={() => setSelectedPlan('monthly')}
-                        className={`p-3 rounded-2xl border cursor-pointer transition-all text-center space-y-1 ${selectedPlan === 'monthly'
+                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all text-center space-y-1.5 relative overflow-hidden ${selectedPlan === 'monthly'
                             ? 'border-brand-primary bg-emerald-50/70 ring-2 ring-brand-primary/20 shadow-sm'
                             : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
                             }`}
                     >
+                        <span className="absolute top-2 right-2 text-[8px] font-black uppercase text-emerald-800 bg-emerald-100/80 px-1.5 py-0.2 rounded">
+                            Popular
+                        </span>
                         <div className="p-2 bg-emerald-100/80 text-brand-primary rounded-xl w-fit mx-auto">
-                            <ShieldCheck size={16} />
+                            <ShieldCheck size={18} />
                         </div>
-                        <p className="font-black text-slate-800 text-[11px]">Monthly</p>
-                        <p className="text-[9px] text-brand-primary font-black leading-tight">{plans['monthly'].price}</p>
+                        <div>
+                            <p className="font-black text-slate-800 text-xs">Monthly Plan</p>
+                            <p className="text-[10px] text-brand-primary font-black mt-0.5">{plans['monthly'].price}</p>
+                            <p className="text-[9px] text-slate-400 mt-0.5">4-week calculated tier</p>
+                        </div>
                     </div>
                 </div>
 
                 {/* Primary Proceed Action */}
                 <Button
                     onClick={() => handleTriggerCheckout(selectedPlan)}
-                    className="w-full py-3 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                    className="w-full py-3.5 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                 >
-                    <CreditCard size={15} /> Continue with {plans[selectedPlan].title} ({plans[selectedPlan].price})
+                    <CreditCard size={15} /> Proceed to Payment & Subscription ({plans[selectedPlan]?.price})
                 </Button>
             </div>
 

@@ -1,10 +1,12 @@
 // src/components/common/WaitlistCaptureModal.jsx
 import React, { useState } from 'react';
 import Button from './Button';
+import { waitlist } from '../../services/api';
 import { MapPin, MessageSquare, CheckCircle2, X } from 'lucide-react';
 
 export default function WaitlistCaptureModal({ isOpen, onClose, userAddress }) {
     const [submitted, setSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
@@ -15,10 +17,23 @@ export default function WaitlistCaptureModal({ isOpen, onClose, userAddress }) {
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Here you would save to Supabase or local state
-        setSubmitted(true);
+        setIsSubmitting(true);
+        try {
+            await waitlist.registerWaitlist({
+                phone: formData.phone,
+                area_name: userAddress || 'Oke-Fia',
+                full_name: formData.name,
+                account_type: formData.accountType,
+                weekly_bags: formData.weeklyBags
+            });
+        } catch (apiErr) {
+            console.warn('[Waitlist] API submission fallback:', apiErr);
+        } finally {
+            setIsSubmitting(false);
+            setSubmitted(true);
+        }
     };
 
     // Generate unique referral link for WhatsApp
@@ -105,7 +120,7 @@ export default function WaitlistCaptureModal({ isOpen, onClose, userAddress }) {
                             </div>
                         </div>
 
-                        <Button type="submit" className="w-full py-3 font-bold text-xs">
+                        <Button type="submit" isLoading={isSubmitting} className="w-full py-3 font-bold text-xs">
                             Join Neighborhood Waitlist
                         </Button>
                     </form>

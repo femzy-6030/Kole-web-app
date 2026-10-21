@@ -1,6 +1,8 @@
 // src/components/customer/PaymentCheckoutView.jsx
 import React, { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { payments } from '../../services/api';
+import PaymentPage from '../PaymentPage';
 import Button from '../../components/common/Button';
 import {
     CheckCircle,
@@ -15,6 +17,11 @@ import {
 } from 'lucide-react';
 
 export default function PaymentCheckoutView({ pickupRequest, onPaymentSuccess }) {
+    // If this is a Monthly or Weekly subscription plan, render the dedicated PaymentPage
+    if (pickupRequest?.planKey === 'monthly' || pickupRequest?.planKey === 'weekly') {
+        return <PaymentPage checkoutData={pickupRequest} onPaymentSuccess={onPaymentSuccess} />;
+    }
+
     const { user, addActiveRequest } = useAuthStore();
     const [isProcessing, setIsProcessing] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);

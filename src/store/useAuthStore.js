@@ -9,6 +9,10 @@ export const useAuthStore = create(
             role: 'customer', // 'customer' | 'organization' | 'collector' | 'admin'
             isAuthenticated: false,
             rememberMe: true,
+            accessToken: null,
+            refreshToken: null,
+            tokens: null,
+            subscription: null,
 
             // Active Requests State (Phase 2 Dispatch Pipeline)
             activeRequests: [
@@ -22,13 +26,38 @@ export const useAuthStore = create(
                 }
             ],
 
-            login: (userData, role, remember = true) => {
+            login: (userData, role, remember = true, tokens = null) => {
+                const access = tokens?.access || tokens?.access_token || userData?.access || userData?.access_token || userData?.token || null;
+                const refresh = tokens?.refresh || tokens?.refresh_token || userData?.refresh || userData?.refresh_token || null;
                 set({
                     user: userData,
                     role: role,
                     isAuthenticated: true,
                     rememberMe: remember,
+                    accessToken: access,
+                    refreshToken: refresh,
+                    tokens: access ? { access, refresh } : null,
                 });
+            },
+
+            setTokens: (tokens) => {
+                const access = tokens?.access || tokens?.access_token || (typeof tokens === 'string' ? tokens : null);
+                const refresh = tokens?.refresh || tokens?.refresh_token || null;
+                set((state) => ({
+                    accessToken: access || state.accessToken,
+                    refreshToken: refresh || state.refreshToken,
+                    tokens: {
+                        access: access || state.accessToken,
+                        refresh: refresh || state.refreshToken,
+                    },
+                }));
+            },
+
+            setSubscription: (subData) => {
+                set((state) => ({
+                    subscription: subData,
+                    user: state.user ? { ...state.user, subscription: subData } : state.user,
+                }));
             },
 
             updateUserProfile: (updatedFields) => {
@@ -45,7 +74,16 @@ export const useAuthStore = create(
             },
 
             logout: () => {
-                set({ user: null, role: 'customer', isAuthenticated: false, activeRequests: [] });
+                set({
+                    user: null,
+                    role: 'customer',
+                    isAuthenticated: false,
+                    accessToken: null,
+                    refreshToken: null,
+                    tokens: null,
+                    subscription: null,
+                    activeRequests: []
+                });
                 localStorage.removeItem('kole-auth-storage');
             },
         }),
