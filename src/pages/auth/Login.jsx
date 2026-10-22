@@ -34,15 +34,15 @@ export default function Login({ onSwitchToRegister }) {
         }
 
         try {
-            // Live backend authentication via POST /token/
+            // Live backend authentication via standardized POST /auth/login/
             const data = await auth.login({
                 username: enteredUsername,
                 password: enteredPassword,
             });
 
             // Strict response verification: 200 OK with access and refresh tokens
-            const accessToken = data?.access || data?.access_token || data?.token;
-            const refreshToken = data?.refresh || data?.refresh_token;
+            const accessToken = data?.access || data?.accessToken || data?.access_token || data?.token;
+            const refreshToken = data?.refresh || data?.refreshToken || data?.refresh_token;
 
             if (!accessToken) {
                 throw new Error('Authentication succeeded but no access token was returned.');
@@ -68,13 +68,13 @@ export default function Login({ onSwitchToRegister }) {
             setIsLoading(false);
             console.error('[Login Error]', err);
 
-            // Strict failure handling: prevent routing, clear any dummy sessions, display error message
+            // Graceful 401 Unauthorized error handling
             const errorMsg =
-                err.response?.data?.detail ||
-                err.response?.data?.message ||
-                (err.response?.status === 401 || err.response?.status === 400
-                    ? 'Invalid username or password. Please check your credentials.'
-                    : 'Invalid username or password. Please check your credentials.');
+                err.response?.status === 401
+                    ? 'No active account found with the given credentials. Please check your details or register first.'
+                    : (err.response?.data?.detail ||
+                        err.response?.data?.message ||
+                        'No active account found with the given credentials. Please check your details or register first.');
 
             setAuthError(errorMsg);
         }
@@ -125,6 +125,15 @@ export default function Login({ onSwitchToRegister }) {
                     <div className="flex-1 text-xs">
                         <p className="font-bold">Authentication Failed</p>
                         <p className="text-[11px] mt-0.5 text-rose-600 leading-tight">{authError}</p>
+                        {(authError.includes('register first') || authError.toLowerCase().includes('no active account')) && onSwitchToRegister && (
+                            <button
+                                type="button"
+                                onClick={() => { setAuthError(''); onSwitchToRegister(); }}
+                                className="mt-2 text-xs font-bold text-brand-primary underline hover:text-brand-dark block cursor-pointer"
+                            >
+                                Don't have an account yet? Click here to Register
+                            </button>
+                        )}
                     </div>
                 </div>
             )}

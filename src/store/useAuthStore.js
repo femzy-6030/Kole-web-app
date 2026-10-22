@@ -27,8 +27,8 @@ export const useAuthStore = create(
             ],
 
             login: (userData, role, remember = true, tokens = null) => {
-                const access = tokens?.access || tokens?.access_token || userData?.access || userData?.access_token || userData?.token || null;
-                const refresh = tokens?.refresh || tokens?.refresh_token || userData?.refresh || userData?.refresh_token || null;
+                const access = tokens?.access || tokens?.accessToken || tokens?.access_token || userData?.access || userData?.accessToken || userData?.access_token || userData?.token || null;
+                const refresh = tokens?.refresh || tokens?.refreshToken || tokens?.refresh_token || userData?.refresh || userData?.refreshToken || userData?.refresh_token || null;
                 set({
                     user: userData,
                     role: role,

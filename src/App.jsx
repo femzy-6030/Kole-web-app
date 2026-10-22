@@ -118,15 +118,16 @@ export default function App() {
             }
 
             try {
-                // Call real backend token endpoint: POST https://kole-pi.vercel.app/api/v1/token/
+                // Call live backend login endpoint: POST https://kole-pi.vercel.app/api/v1/auth/login/
                 const data = await auth.login({
                     username: enteredUsername,
+                    email: enteredUsername.includes('@') ? enteredUsername : undefined,
                     password: enteredPassword,
                 });
 
                 // Extract access and refresh tokens
-                const accessToken = data?.access || data?.access_token || data?.token;
-                const refreshToken = data?.refresh || data?.refresh_token;
+                const accessToken = data?.access || data?.accessToken || data?.access_token || data?.token;
+                const refreshToken = data?.refresh || data?.refreshToken || data?.refresh_token;
 
                 if (!accessToken) {
                     throw new Error('No access token returned from authentication service.');
@@ -154,13 +155,13 @@ export default function App() {
                 setIsLoading(false);
                 console.error('[Authentication Failed]', err);
 
-                // Strict error handling: prevent routing, clear any dummy state, display error message
+                // Graceful 401 Unauthorized error handling
                 const errorMsg =
-                    err.response?.data?.detail ||
-                    err.response?.data?.message ||
-                    (err.response?.status === 401 || err.response?.status === 400
-                        ? 'Invalid username or password. Please check your credentials.'
-                        : 'Invalid username or password. Please check your credentials.');
+                    err.response?.status === 401
+                        ? 'No active account found with the given credentials. Please check your details or register first.'
+                        : (err.response?.data?.detail ||
+                            err.response?.data?.message ||
+                            'No active account found with the given credentials. Please check your details or register first.');
 
                 setAuthError(errorMsg);
             }
@@ -181,7 +182,7 @@ export default function App() {
 
                 await auth.register(regPayload);
 
-                // Auto-authenticate with POST /token/ after successful registration
+                // Auto-authenticate with POST /auth/login/ after successful registration
                 const data = await auth.login({
                     username: cleanEmail,
                     password: enteredPassword,
@@ -259,8 +260,8 @@ export default function App() {
                 password: enteredPassword,
             });
 
-            const accessToken = data?.access || data?.access_token || data?.token;
-            const refreshToken = data?.refresh || data?.refresh_token;
+            const accessToken = data?.access || data?.accessToken || data?.access_token || data?.token;
+            const refreshToken = data?.refresh || data?.refreshToken || data?.refresh_token;
 
             if (!accessToken) {
                 throw new Error('No access token returned for administrator.');
@@ -283,8 +284,9 @@ export default function App() {
         } catch (err) {
             setIsLoading(false);
             const errorMsg =
-                err.response?.data?.detail ||
-                'Invalid administrator credentials. Access restricted.';
+                err.response?.status === 401
+                    ? 'No active account found with the given credentials. Please check your details or register first.'
+                    : (err.response?.data?.detail || 'Invalid administrator credentials. Access restricted.');
             setAuthError(errorMsg);
         }
     };
@@ -495,6 +497,15 @@ export default function App() {
                                             className="mt-2 text-xs font-bold text-brand-primary underline hover:text-brand-dark block cursor-pointer"
                                         >
                                             Account exists? Click here to Sign In
+                                        </button>
+                                    )}
+                                    {authMode === 'login' && (authError.includes('register first') || authError.toLowerCase().includes('no active account')) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setAuthMode('register'); setAuthError(''); }}
+                                            className="mt-2 text-xs font-bold text-brand-primary underline hover:text-brand-dark block cursor-pointer"
+                                        >
+                                            Don't have an account yet? Click here to Register
                                         </button>
                                     )}
                                 </div>

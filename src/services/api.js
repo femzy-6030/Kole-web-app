@@ -38,98 +38,22 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Handle 401 Unauthorized by attempting token refresh
-let isRefreshing = false;
-let failedQueue = [];
-
-const processQueue = (error, token = null) => {
-    failedQueue.forEach((prom) => {
-        if (error) {
-            prom.reject(error);
-        } else {
-            prom.resolve(token);
-        }
-    });
-    failedQueue = [];
-};
-
+// Response Interceptor: Handle 401 Unauthorized cleanly without firing 404 fallback requests
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+        const requestUrl = originalRequest?.url || '';
 
-        // Check if 401 Unauthorized and request has not already been retried
-        if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-            const requestUrl = originalRequest.url || '';
-
-            // Do not retry refresh requests or login requests to avoid infinite loops
-            if (requestUrl.includes('token/refresh') || requestUrl.includes('token/') || requestUrl.includes('auth/login')) {
-                useAuthStore.getState().logout();
+        // If 401 Unauthorized occurs
+        if (error.response?.status === 401) {
+            // For login or register requests, do not clear store or redirect; let the form handle the error
+            if (requestUrl.includes('auth/login') || requestUrl.includes('auth/register')) {
                 return Promise.reject(error);
             }
 
-            const state = useAuthStore.getState();
-            const refreshToken =
-                state.refreshToken ||
-                state.tokens?.refresh ||
-                state.tokens?.refresh_token ||
-                state.user?.refresh ||
-                state.user?.refresh_token;
-
-            if (!refreshToken) {
-                // No refresh token available in store
-                return Promise.reject(error);
-            }
-
-            if (isRefreshing) {
-                return new Promise((resolve, reject) => {
-                    failedQueue.push({ resolve, reject });
-                })
-                    .then((token) => {
-                        originalRequest.headers = originalRequest.headers || {};
-                        originalRequest.headers.Authorization = `Bearer ${token}`;
-                        return api(originalRequest);
-                    })
-                    .catch((err) => Promise.reject(err));
-            }
-
-            originalRequest._retry = true;
-            isRefreshing = true;
-
-            try {
-                // Attempt token refresh via POST /token/refresh/ with the refresh token
-                const refreshResponse = await axios.post(
-                    `${API_BASE_URL}token/refresh/`,
-                    { refresh: refreshToken },
-                    { headers: { 'Content-Type': 'application/json' } }
-                );
-
-                const data = refreshResponse.data;
-                const newAccessToken = data?.access || data?.access_token;
-                const newRefreshToken = data?.refresh || data?.refresh_token || refreshToken;
-
-                if (newAccessToken) {
-                    useAuthStore.getState().setTokens({
-                        access: newAccessToken,
-                        refresh: newRefreshToken,
-                    });
-
-                    api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
-                    processQueue(null, newAccessToken);
-
-                    originalRequest.headers = originalRequest.headers || {};
-                    originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-                    return api(originalRequest);
-                } else {
-                    throw new Error('No access token returned from refresh endpoint');
-                }
-            } catch (refreshError) {
-                processQueue(refreshError, null);
-                useAuthStore.getState().logout();
-                return Promise.reject(refreshError);
-            } finally {
-                isRefreshing = false;
-            }
+            // For other protected endpoints, clear credentials to prompt re-authentication
+            useAuthStore.getState().logout();
         }
 
         return Promise.reject(error);
@@ -142,22 +66,21 @@ api.interceptors.response.use(
 
 export const auth = {
     /**
-     * Authenticate user with credentials via POST /token/ (with fallback to /auth/login/ on 404)
-     * @param {Object} payload - { username, password }
+     * Authenticate user with credentials via standardized POST /auth/login/
+     * @param {Object} payload - { username, password, email }
      */
     login: async (payload) => {
         const username = (payload.username || payload.email || '').trim();
         const password = payload.password || '';
 
-        const tokenPayload = {
+        // Standard backend expects email and password
+        const email = payload.email || (username.includes('@') ? username : username);
+
+        const loginPayload = {
+            email: email,
             username: username,
             password: password,
         };
-
-        // If username is an email address, also attach email field for DRF compatibility
-        if (username.includes('@')) {
-            tokenPayload.email = username;
-        }
 
         const normalizeTokens = (data) => {
             if (!data) return data;
@@ -172,33 +95,17 @@ export const auth = {
             };
         };
 
-        try {
-            // POST https://kole-pi.vercel.app/api/v1/token/
-            const response = await api.post('token/', tokenPayload);
-            return normalizeTokens(response.data);
-        } catch (err) {
-            // If the deployed backend returns 404 for /token/, fall back to /auth/login/
-            if (err.response?.status === 404) {
-                const fallbackPayload = {
-                    email: tokenPayload.email || tokenPayload.username,
-                    username: tokenPayload.username,
-                    password: tokenPayload.password,
-                };
-                const fallbackRes = await api.post('auth/login/', fallbackPayload);
-                return normalizeTokens(fallbackRes.data);
-            }
-            throw err;
-        }
+        // Standardized backend login endpoint: POST auth/login/
+        // Directly hits live endpoint without probing nonexistent /token/
+        const response = await api.post('auth/login/', loginPayload);
+        return normalizeTokens(response.data);
     },
 
     /**
-     * Refresh expired JWT access token via POST /token/refresh/
-     * @param {Object|string} payload - { refresh: string }
+     * Refresh token method (placeholder, backend sessions re-authenticate via auth/login/)
      */
-    refreshToken: async (payload) => {
-        const body = typeof payload === 'string' ? { refresh: payload } : payload;
-        const response = await api.post('token/refresh/', body);
-        return response.data;
+    refreshToken: async () => {
+        return null;
     },
 
     /**
