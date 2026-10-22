@@ -8,6 +8,7 @@ import HeaderBar from '../../components/layout/HeaderBar';
 import WaitlistCaptureModal from '../../components/common/WaitlistCaptureModal';
 import WhatsAppInviteCard from '../../components/common/WhatsAppInviteCard';
 import CoreValueProps from '../../components/common/CoreValueProps';
+import SOSModal from '../../components/SOSModal';
 import { checkZoneCoverage } from '../../utils/zoneValidator';
 import {
     MapPin,
@@ -26,6 +27,9 @@ export default function CustomerHome({ onNavigateToCheckout }) {
     // Out-of-Zone Waitlist Modal State
     const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
     const [unsupportedAddress, setUnsupportedAddress] = useState('');
+
+    // Streamlined Emergency SOS Modal State
+    const [isSOSModalOpen, setIsSOSModalOpen] = useState(false);
 
     // Service Plans with explicit pricing
     const plans = {
@@ -109,30 +113,18 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                 </div>
             </div>
 
-            {/* 3. SOS Immediate Dispatch Hero Card */}
-            <div className="bg-emerald-950 text-white rounded-3xl p-5 space-y-3 shadow-md relative overflow-hidden text-xs border border-emerald-900">
-                <div className="relative z-10 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-900/80 border border-emerald-700/60 px-2 py-0.5 rounded-md">
-                            Emergency Response
-                        </span>
-                        <span className="text-[10px] text-emerald-300 font-bold flex items-center gap-1">
-                            Live Coverage <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                        </span>
-                    </div>
-
-                    <h2 className="text-lg font-black leading-snug pt-0.5">Need Immediate Waste Pickup?</h2>
-                    <p className="text-slate-300 font-medium text-[11px] leading-relaxed">
-                        Dispatch a collector directly to your doorstep in <span className="font-bold text-white">{selectedArea}</span>.
-                    </p>
-
-                    <Button
-                        onClick={() => handleTriggerCheckout('one-time')}
-                        className="w-full py-3 text-xs font-black uppercase tracking-wider mt-1 flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-                    >
-                        <Zap size={15} /> Request Instant SOS Pickup ({plans['one-time'].price})
-                    </Button>
+            {/* 3. Minimalist Emergency Pickup Hero Banner */}
+            <div className="bg-slate-950 text-white rounded-3xl p-5 border border-slate-800 shadow-md flex items-center justify-between gap-3 text-xs">
+                <div>
+                    <h2 className="text-base font-black text-white leading-tight">Need Emergency Pickup?</h2>
                 </div>
+
+                <Button
+                    onClick={() => setIsSOSModalOpen(true)}
+                    className="px-4 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider rounded-2xl flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 cursor-pointer border-none shrink-0"
+                >
+                    ⚡ REQUEST INSTANT PICKUP
+                </Button>
             </div>
 
             {/* 4. CORE SERVICES: Select Pickup & Payment Plan */}
@@ -250,6 +242,13 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                 isOpen={isWaitlistOpen}
                 onClose={() => setIsWaitlistOpen(false)}
                 userAddress={unsupportedAddress || selectedArea}
+            />
+
+            {/* Streamlined Emergency SOS Modal */}
+            <SOSModal
+                isOpen={isSOSModalOpen}
+                onClose={() => setIsSOSModalOpen(false)}
+                selectedArea={selectedArea}
             />
 
         </div>
