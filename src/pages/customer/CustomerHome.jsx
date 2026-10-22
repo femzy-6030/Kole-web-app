@@ -114,16 +114,16 @@ export default function CustomerHome({ onNavigateToCheckout }) {
             </div>
 
             {/* 3. Minimalist Emergency Pickup Hero Banner */}
-            <div className="bg-slate-950 text-white rounded-3xl p-5 border border-slate-800 shadow-md flex items-center justify-between gap-3 text-xs">
+            <div className="w-full bg-slate-950 text-white rounded-3xl p-5 border border-slate-800 shadow-md space-y-3 text-xs">
                 <div>
                     <h2 className="text-base font-black text-white leading-tight">Need Emergency Pickup?</h2>
                 </div>
 
                 <Button
                     onClick={() => setIsSOSModalOpen(true)}
-                    className="px-4 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider rounded-2xl flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 cursor-pointer border-none shrink-0"
+                    className="w-full py-3.5 bg-emerald-600 hover:bg-[#0c633e] text-white text-xs font-black uppercase tracking-wider rounded-2xl flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/40 cursor-pointer border-none"
                 >
-                    ⚡ REQUEST INSTANT PICKUP
+                    ⚡ REQUEST INSTANT SOS PICKUP
                 </Button>
             </div>
 
