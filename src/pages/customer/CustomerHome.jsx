@@ -74,6 +74,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
         if (onNavigateToCheckout) {
             onNavigateToCheckout({
                 planKey,
+                billingCycle: planKey,
                 title: planDetails.title,
                 amount: planDetails.price,
                 Area: selectedArea

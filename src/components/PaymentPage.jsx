@@ -29,7 +29,7 @@ const DEFAULT_PAYMENT_CONFIG = {
     baseWeeklyRate: 2500, // Includes ₦500 service fee (Base ₦2,000 + ₦500 fee)
     weeklyServiceFee: 500,
     stepIncrement: 1000,
-    maxWeeklyTier: 7000,
+    maxWeeklyTier: 7500, // Up to ₦7,500/wk cap
     weeksPerMonth: 4,
 };
 
@@ -40,7 +40,22 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
     const [pricingConfig, setPricingConfig] = useState(DEFAULT_PAYMENT_CONFIG);
     const [showAdminConfig, setShowAdminConfig] = useState(false);
 
-    // Selected Volume Upgrade (in Naira per week): 0, 1000, 2000, 3000, 4000, 4500
+    // Billing Cycle Mode: 'weekly' (1-Week Pass) | 'monthly' (4-Week Continuous Plan)
+    const [billingCycle, setBillingCycle] = useState(() => {
+        return checkoutData?.billingCycle || (checkoutData?.planKey === 'weekly' ? 'weekly' : 'monthly');
+    });
+
+    useEffect(() => {
+        if (checkoutData?.billingCycle) {
+            setBillingCycle(checkoutData.billingCycle);
+        } else if (checkoutData?.planKey === 'weekly') {
+            setBillingCycle('weekly');
+        } else if (checkoutData?.planKey === 'monthly') {
+            setBillingCycle('monthly');
+        }
+    }, [checkoutData]);
+
+    // Selected Volume Upgrade (in Naira per week): 0, 1000, 2000, 3000, 4000, 5000
     const [selectedVolumeAddon, setSelectedVolumeAddon] = useState(0);
 
     // Flow State: 'idle' | 'initializing' | 'verifying' | 'success' | 'error'
@@ -56,71 +71,60 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
     const customerPhone = user?.phoneNumber || '08012345678';
     const customerEmail = user?.email || `${(user?.fullName || 'customer').toLowerCase().replace(/\s+/g, '')}@kole.ng`;
 
-    // 2. Generate Dynamic Volume Tiers up to maxWeeklyTier (₦7,000 per week)
+    // 2. Generate Dynamic Volume Tiers up to maxWeeklyTier (₦7,500 per week cap)
     const volumeTiers = useMemo(() => {
         const tiers = [];
-        const baseWeekly = pricingConfig.baseWeeklyRate;
-        const maxWeekly = pricingConfig.maxWeeklyTier;
-        const step = pricingConfig.stepIncrement;
-        const weeks = pricingConfig.weeksPerMonth;
+        const baseWeekly = pricingConfig.baseWeeklyRate; // 2500
+        const maxWeekly = pricingConfig.maxWeeklyTier; // 7500
+        const step = pricingConfig.stepIncrement; // 1000
+        const weeks = pricingConfig.weeksPerMonth; // 4
 
-        // Base Tier (+₦0)
-        const baseMonthly = baseWeekly * weeks;
-        tiers.push({
-            addon: 0,
-            weeklyTotal: baseWeekly,
-            monthlyTotal: baseMonthly,
-            title: 'Standard Household (1-2 bags/week)',
-            label: `Standard Base — ₦${baseWeekly.toLocaleString()}/wk (₦${baseMonthly.toLocaleString()}/mo)`,
-        });
+        const tierNames = [
+            'Standard Household (1-2 bags/wk)',
+            'Medium Household (3-4 bags/wk)',
+            'Large Household (5-6 bags/wk)',
+            'Commercial / Multi-flat (7-8 bags/wk)',
+            'High Volume / Compound (9-10 bags/wk)',
+            'Maximum Cap / Estate (10+ bags/wk)',
+        ];
 
-        // Incremental Tiers
-        let currentAddon = step;
-        while (baseWeekly + currentAddon <= maxWeekly) {
-            const weeklyTotal = baseWeekly + currentAddon;
-            const monthlyTotal = weeklyTotal * weeks;
-            const bagEstimate = `${2 + (currentAddon / 1000) * 2}-${3 + (currentAddon / 1000) * 2} bags/week`;
-
+        let index = 0;
+        for (let weekly = baseWeekly; weekly <= maxWeekly; weekly += step) {
+            const addon = weekly - baseWeekly;
+            const monthlyTotal = weekly * weeks;
+            const title = tierNames[index] || `Tier +₦${addon.toLocaleString()}/wk`;
             tiers.push({
-                addon: currentAddon,
-                weeklyTotal: weeklyTotal,
-                monthlyTotal: monthlyTotal,
-                title: `Tier +₦${currentAddon.toLocaleString()} (${bagEstimate})`,
-                label: `+₦${currentAddon.toLocaleString()}/wk — ₦${weeklyTotal.toLocaleString()}/wk (₦${monthlyTotal.toLocaleString()}/mo)`,
+                addon,
+                weeklyTotal: weekly,
+                monthlyTotal,
+                title,
+                label: `₦${weekly.toLocaleString()}/wk (Monthly: ₦${monthlyTotal.toLocaleString()}/mo) — ${title}`,
             });
-
-            currentAddon += step;
-        }
-
-        // Ensure max tier (₦7,000/week) is explicitly present if not reached evenly
-        const finalMaxAddon = maxWeekly - baseWeekly;
-        if (finalMaxAddon > 0 && !tiers.some((t) => t.weeklyTotal === maxWeekly)) {
-            const monthlyTotal = maxWeekly * weeks;
-            tiers.push({
-                addon: finalMaxAddon,
-                weeklyTotal: maxWeekly,
-                monthlyTotal: monthlyTotal,
-                title: 'Maximum Capacity / Multi-tenant (10+ bags/week)',
-                label: `Max Tier (₦7,000/wk) — ₦${maxWeekly.toLocaleString()}/wk (₦${monthlyTotal.toLocaleString()}/mo)`,
-            });
+            index++;
         }
 
         return tiers;
     }, [pricingConfig]);
 
-    // 3. Mathematical Breakdown (Weekly to Monthly)
+    // 3. Mathematical Breakdown (Dynamic Mode Switching: Weekly vs Monthly)
     const baseWeeklyRate = pricingConfig.baseWeeklyRate; // ₦2,500
     const weeklyServiceFee = pricingConfig.weeklyServiceFee; // ₦500
     const weeklyBaseSubtotal = Math.max(0, baseWeeklyRate - weeklyServiceFee); // ₦2,000
-    const selectedWeeklyTotal = baseWeeklyRate + selectedVolumeAddon; // e.g. ₦2,500, ₦3,500 ...
-    const weeksCount = pricingConfig.weeksPerMonth; // 4 weeks
-    const computedMonthlyTotal = selectedWeeklyTotal * weeksCount; // Weekly * 4
-    const totalAmountInKobo = computedMonthlyTotal * 100; // in Kobo for Paystack
+    const selectedWeeklyTotal = baseWeeklyRate + selectedVolumeAddon; // e.g. ₦2,500, ₦3,500 ... up to ₦7,500
 
-    // Monthly fees breakdown
-    const monthlyBaseFee = weeklyBaseSubtotal * weeksCount;
-    const monthlyVolumeAddon = selectedVolumeAddon * weeksCount;
-    const monthlyServiceFee = weeklyServiceFee * weeksCount;
+    const isMonthly = billingCycle === 'monthly';
+    const weeksCount = isMonthly ? pricingConfig.weeksPerMonth : 1; // 4 weeks for monthly, 1 week for weekly pass
+
+    // Final computed total to charge:
+    // If Weekly Pass: exact chosen weekly tier amount for that single week.
+    // If Monthly Plan: Selected Weekly Tier × 4 Weeks.
+    const finalComputedTotal = selectedWeeklyTotal * weeksCount;
+    const finalAmountInKobo = finalComputedTotal * 100; // in Kobo for Paystack
+
+    // Real-time breakdown components
+    const breakdownBaseSubtotal = weeklyBaseSubtotal * weeksCount;
+    const breakdownVolumeAddon = selectedVolumeAddon * weeksCount;
+    const breakdownServiceFee = weeklyServiceFee * weeksCount;
 
     // Load Paystack Inline script dynamically
     useEffect(() => {
@@ -150,24 +154,28 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                     reference: reference,
                     data: {
                         reference: reference,
-                        amount: totalAmountInKobo,
+                        amount: finalAmountInKobo,
                         status: 'success',
                     },
                 };
             }
 
             // Sync successful subscription into store & active dispatches
+            const renewalDays = isMonthly ? 28 : 7;
             const renewalDate = new Date();
-            renewalDate.setDate(renewalDate.getDate() + 28); // 4 weeks
+            renewalDate.setDate(renewalDate.getDate() + renewalDays);
 
             const currentTierObj = volumeTiers.find((t) => t.addon === selectedVolumeAddon) || volumeTiers[0];
 
             const verifiedSubscription = {
-                plan: 'monthly',
-                planTitle: 'Household Monthly Plan (Weekly Evacuation)',
+                plan: billingCycle,
+                planTitle: isMonthly
+                    ? 'Household Monthly Plan (4-Week Continuous Evacuation)'
+                    : 'Household Weekly Pass (Single Week Doorstep Evacuation)',
                 tierLabel: currentTierObj.title,
                 weeklyRate: `₦${selectedWeeklyTotal.toLocaleString()}/wk`,
-                monthlyAmount: `₦${computedMonthlyTotal.toLocaleString()}/mo`,
+                totalPaid: `₦${finalComputedTotal.toLocaleString()}`,
+                billingCycle: billingCycle,
                 reference: reference,
                 status: 'ACTIVE',
                 activatedAt: new Date().toISOString(),
@@ -182,7 +190,7 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
             if (updateUserProfile) {
                 updateUserProfile({
                     subscriptionStatus: 'ACTIVE',
-                    activePlan: 'monthly',
+                    activePlan: billingCycle,
                     subscriptionTier: currentTierObj.title,
                 });
             }
@@ -190,9 +198,9 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
             // Push active dispatch schedule into activeRequests
             if (addActiveRequest) {
                 addActiveRequest({
-                    requestId: `#KL-SUB-${reference.slice(-6).toUpperCase()}`,
-                    title: `Household Monthly Plan (${currentTierObj.title})`,
-                    amount: `₦${computedMonthlyTotal.toLocaleString()} (4 Wks)`,
+                    requestId: `#KL-${billingCycle.toUpperCase()}-${reference.slice(-6).toUpperCase()}`,
+                    title: `${isMonthly ? 'Household Monthly Plan' : 'Household Weekly Pass'} (${currentTierObj.title})`,
+                    amount: `₦${finalComputedTotal.toLocaleString()} (${isMonthly ? '4 Wks' : '1 Wk'})`,
                     status: 'SUBSCRIPTION_ACTIVE',
                     address: customerAddress,
                     area: customerArea,
@@ -202,7 +210,8 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
 
             setSuccessData({
                 reference: reference,
-                monthlyTotal: computedMonthlyTotal,
+                billingCycle: billingCycle,
+                finalComputedTotal: finalComputedTotal,
                 weeklyRate: selectedWeeklyTotal,
                 tierLabel: currentTierObj.title,
                 nextBilling: renewalDate.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -234,22 +243,23 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
         setErrorMessage('');
 
         const payload = {
-            amount: totalAmountInKobo, // Computed monthly total in kobo
-            plan_type: 'monthly',
+            amount: finalAmountInKobo, // Computed 1-week or 4-week total in kobo
+            plan_type: billingCycle,
             email: customerEmail,
             metadata: {
+                billing_cycle: billingCycle,
                 area: customerArea,
                 customer_name: customerName,
                 weekly_base: baseWeeklyRate,
                 volume_addon_weekly: selectedVolumeAddon,
-                weekly_total: selectedWeeklyTotal,
+                weekly_tier_total: selectedWeeklyTotal,
                 weeks_count: weeksCount,
-                computed_monthly_total: computedMonthlyTotal,
+                final_computed_total: finalComputedTotal,
             },
         };
 
         try {
-            // STEP 1: POST /payments/initialize/ passing computed monthly total in kobo
+            // STEP 1: POST /payments/initialize/ passing computed total in kobo
             let initResponse = null;
             try {
                 initResponse = await payments.initializePayment(payload);
@@ -265,8 +275,9 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                 'kole_pending_payment',
                 JSON.stringify({
                     reference: ref,
-                    amount: computedMonthlyTotal,
+                    amount: finalComputedTotal,
                     area: customerArea,
+                    billingCycle: billingCycle,
                 })
             );
 
@@ -280,14 +291,15 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                 const handler = window.PaystackPop.setup({
                     key: data.public_key || data.key || 'pk_test_d3a8b422a1b9c9d09f3e4e9b7201c1f21139a04a',
                     email: customerEmail,
-                    amount: totalAmountInKobo,
+                    amount: finalAmountInKobo,
                     currency: 'NGN',
                     ref: ref,
                     metadata: {
                         custom_fields: [
                             { display_name: 'Resident Name', variable_name: 'resident_name', value: customerName },
                             { display_name: 'Cluster Zone', variable_name: 'cluster_zone', value: customerArea },
-                            { display_name: 'Billing Plan', variable_name: 'billing_plan', value: '4-Week Monthly Subscription' },
+                            { display_name: 'Billing Plan', variable_name: 'billing_plan', value: isMonthly ? '4-Week Monthly Subscription' : '1-Week Weekly Pass' },
+                            { display_name: 'Weekly Rate', variable_name: 'weekly_rate', value: `₦${selectedWeeklyTotal.toLocaleString()}/wk` },
                         ],
                     },
                     callback: (response) => {
@@ -333,11 +345,17 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
 
                 <div>
                     <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/80">
-                        Monthly Plan Verified & Active
+                        {successData.billingCycle === 'weekly' ? 'Weekly Pass Verified & Active' : 'Monthly Plan Verified & Active'}
                     </span>
-                    <h2 className="text-xl font-black text-slate-900 mt-2">Subscription Live!</h2>
+                    <h2 className="text-xl font-black text-slate-900 mt-2">
+                        {successData.billingCycle === 'weekly' ? 'Weekly Pass Live!' : 'Subscription Live!'}
+                    </h2>
                     <p className="text-slate-500 text-xs mt-1 leading-relaxed">
-                        Evacuations in <span className="font-bold text-slate-800">{successData.area} Zone</span> have been scheduled for 4 consecutive weeks.
+                        {successData.billingCycle === 'weekly' ? (
+                            <>Doorstep waste evacuation in <span className="font-bold text-slate-800">{successData.area} Zone</span> is active for 7 days.</>
+                        ) : (
+                            <>Evacuations in <span className="font-bold text-slate-800">{successData.area} Zone</span> have been scheduled for 4 consecutive weeks.</>
+                        )}
                     </p>
                 </div>
 
@@ -366,12 +384,16 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
 
                     <div className="flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Billing Period</span>
-                        <span className="font-bold text-slate-700">4 Weeks</span>
+                        <span className="font-bold text-slate-700">
+                            {successData.billingCycle === 'weekly' ? '1 Week (Single Pass)' : '4 Weeks (Monthly Plan)'}
+                        </span>
                     </div>
 
                     <div className="flex justify-between items-center pt-2 border-t border-slate-200/60">
-                        <span className="text-slate-600 font-bold">Total Monthly Paid</span>
-                        <span className="text-base font-black text-slate-900">₦{successData.monthlyTotal.toLocaleString()}</span>
+                        <span className="text-slate-600 font-bold">
+                            {successData.billingCycle === 'weekly' ? 'Total Paid (1 Week)' : 'Total Monthly Paid'}
+                        </span>
+                        <span className="text-base font-black text-slate-900">₦{successData.finalComputedTotal.toLocaleString()}</span>
                     </div>
 
                     <div className="flex justify-between items-center pt-1 text-[11px]">
@@ -488,12 +510,58 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                 {/* Header Title */}
                 <div>
                     <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-100">
-                        Household Subscription
+                        {isMonthly ? 'Household Monthly Subscription' : 'Household Weekly Pass'}
                     </span>
                     <h1 className="text-xl font-black text-slate-900 mt-1">Payment & Plan Checkout</h1>
                     <p className="text-slate-500 text-[11px] mt-0.5">
-                        Weekly doorstep waste evacuation calculated across 4 weeks for {customerArea} Cluster.
+                        {isMonthly
+                            ? `Weekly doorstep waste evacuation calculated across 4 weeks for ${customerArea} Cluster.`
+                            : `Doorstep waste evacuation for a single week in ${customerArea} Cluster.`
+                        }
                     </p>
+                </div>
+
+                {/* DYNAMIC BILLING CYCLE MODE TOGGLE (Weekly Pass vs Monthly Plan) */}
+                <div className="space-y-1.5">
+                    <label className="block font-black text-slate-800 text-xs">
+                        Select Billing Cycle Mode
+                    </label>
+                    <div className="p-1 bg-slate-100 rounded-2xl flex items-center gap-1">
+                        <button
+                            type="button"
+                            onClick={() => setBillingCycle('weekly')}
+                            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                billingCycle === 'weekly'
+                                    ? 'bg-white text-brand-primary shadow-sm ring-1 ring-slate-200'
+                                    : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                        >
+                            <Calendar size={14} />
+                            <div className="text-left">
+                                <span className="block leading-tight">Weekly Pass</span>
+                                <span className="text-[9px] font-normal block opacity-80">1-Week Single Charge</span>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setBillingCycle('monthly')}
+                            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer relative ${
+                                billingCycle === 'monthly'
+                                    ? 'bg-white text-brand-primary shadow-sm ring-1 ring-slate-200'
+                                    : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                        >
+                            <ShieldCheck size={14} />
+                            <div className="text-left">
+                                <span className="block leading-tight">Monthly Plan</span>
+                                <span className="text-[9px] font-normal block opacity-80">4 Weeks Continuous</span>
+                            </div>
+                            <span className="absolute -top-1.5 right-2 text-[8px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded-md">
+                                Popular
+                            </span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* DYNAMIC VOLUME DROPDOWN */}
@@ -528,7 +596,11 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                     <div className="flex items-start gap-1.5 p-2 bg-emerald-50/70 rounded-xl border border-emerald-100 text-[10.5px] text-slate-600">
                         <Info size={14} className="text-brand-primary shrink-0 mt-0.5" />
                         <span>
-                            Base Weekly Rate starts at <strong>₦2,500/week</strong> (includes ₦500 service fee). Billed as a 4-week monthly subscription.
+                            Base Weekly Rate starts at <strong>₦2,500/week</strong> (includes ₦500 service fee).{' '}
+                            {isMonthly
+                                ? 'Billed as a 4-week continuous monthly plan.'
+                                : 'Billed as a 1-week pass with manual weekly renewal.'
+                            }
                         </span>
                     </div>
                 </div>
@@ -560,69 +632,78 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                     </div>
                 </div>
 
-                {/* ORDER SUMMARY & WEEKLY-TO-MONTHLY BREAKDOWN */}
+                {/* ORDER SUMMARY & DYNAMIC CALCULATION BREAKDOWN */}
                 <div className="bg-gradient-to-b from-slate-50 to-emerald-50/40 rounded-2xl p-4 border border-slate-200 space-y-3">
                     <div className="flex justify-between items-center pb-2 border-b border-slate-200/80">
                         <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
                             Calculation Breakdown
                         </span>
                         <span className="text-[10px] font-black text-brand-primary bg-emerald-100/70 px-2 py-0.5 rounded">
-                            4 Weeks Plan
+                            {isMonthly ? '4 Weeks Continuous Plan' : '1 Week Single Pass'}
                         </span>
                     </div>
 
                     <div className="space-y-2 text-xs">
                         {/* Weekly Base Subtotal */}
                         <div className="flex justify-between items-center text-slate-600">
-                            <span>Base Weekly Evacuation</span>
-                            <span className="font-bold text-slate-800">₦{weeklyBaseSubtotal.toLocaleString()} / wk</span>
+                            <span>Base Doorstep Evacuation ({isMonthly ? '₦2,000 × 4 wks' : 'Base Rate'})</span>
+                            <span className="font-bold text-slate-800">₦{breakdownBaseSubtotal.toLocaleString()}</span>
                         </div>
 
                         {/* Weekly Volume Upgrade */}
                         <div className="flex justify-between items-center text-slate-600">
-                            <span>Weekly Volume Upgrade</span>
+                            <span>
+                                Volume Upgrade ({selectedVolumeAddon > 0 ? (isMonthly ? `+₦${selectedVolumeAddon.toLocaleString()} × 4 wks` : `+₦${selectedVolumeAddon.toLocaleString()}/wk`) : 'Standard'})
+                            </span>
                             <span className={`font-bold ${selectedVolumeAddon > 0 ? 'text-brand-primary' : 'text-slate-400'}`}>
-                                {selectedVolumeAddon > 0 ? `+₦${selectedVolumeAddon.toLocaleString()} / wk` : '₦0 (Included)'}
+                                {breakdownVolumeAddon > 0 ? `+₦${breakdownVolumeAddon.toLocaleString()}` : '₦0 (Included)'}
                             </span>
                         </div>
 
                         {/* Weekly Service Fee */}
                         <div className="flex justify-between items-center text-slate-600">
                             <div className="flex items-center gap-1">
-                                <span>Weekly Service & Platform Fee</span>
+                                <span>Platform & Service Fee ({isMonthly ? '₦500 × 4 wks' : '₦500 fixed'})</span>
                                 <span className="text-[9px] text-slate-400 bg-slate-200 px-1.5 py-0.2 rounded font-semibold">
                                     Fixed
                                 </span>
                             </div>
-                            <span className="font-bold text-slate-800">₦{weeklyServiceFee.toLocaleString()} / wk</span>
+                            <span className="font-bold text-slate-800">₦{breakdownServiceFee.toLocaleString()}</span>
                         </div>
 
                         {/* Weekly Subtotal Line */}
                         <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-slate-800 font-bold">
-                            <span>Total Weekly Rate</span>
+                            <span>Weekly Tier Rate</span>
                             <span className="text-brand-primary">₦{selectedWeeklyTotal.toLocaleString()} / wk</span>
                         </div>
 
                         {/* Multiplier Line */}
                         <div className="flex justify-between items-center text-[11px] text-slate-500 bg-white/80 p-2 rounded-xl border border-slate-200/60">
-                            <span>Monthly Calculation Formula:</span>
+                            <span>Billing Formula:</span>
                             <span className="font-mono font-bold text-slate-800">
-                                ₦{selectedWeeklyTotal.toLocaleString()} × 4 Weeks
+                                {isMonthly
+                                    ? `₦${selectedWeeklyTotal.toLocaleString()}/wk × 4 Weeks = ₦${finalComputedTotal.toLocaleString()}`
+                                    : `₦${selectedWeeklyTotal.toLocaleString()} × 1 Week = ₦${finalComputedTotal.toLocaleString()}`
+                                }
                             </span>
                         </div>
 
-                        {/* Final Calculated Monthly Total */}
+                        {/* Final Calculated Total */}
                         <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 text-sm">
                             <div>
-                                <span className="font-black text-slate-900 block">Total Monthly Amount</span>
-                                <span className="text-[10px] text-slate-400 font-normal">Covers 4 consecutive weeks</span>
+                                <span className="font-black text-slate-900 block">
+                                    {isMonthly ? 'Total Monthly Amount' : 'Total Weekly Pass Amount'}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-normal">
+                                    {isMonthly ? 'Covers 4 consecutive weeks' : 'Valid for 7 days (single week)'}
+                                </span>
                             </div>
                             <div className="text-right">
                                 <span className="text-xl font-black text-brand-primary">
-                                    ₦{computedMonthlyTotal.toLocaleString()}
+                                    ₦{finalComputedTotal.toLocaleString()}
                                 </span>
                                 <span className="text-[10px] text-slate-400 block font-normal -mt-0.5">
-                                    / month
+                                    {isMonthly ? '/ month' : '/ week'}
                                 </span>
                             </div>
                         </div>
@@ -646,7 +727,7 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                     isLoading={status === 'initializing' || status === 'verifying'}
                     className="w-full py-3.5 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md bg-emerald-700 hover:bg-emerald-800"
                 >
-                    <CreditCard size={16} /> Proceed to Paystack Checkout (₦{computedMonthlyTotal.toLocaleString()})
+                    <CreditCard size={16} /> Proceed to Paystack Checkout (₦{finalComputedTotal.toLocaleString()})
                 </Button>
 
                 {/* Security and Trust Badges */}
