@@ -12,7 +12,9 @@ import {
     ShieldCheck,
     Lock,
     KeyRound,
-    ShieldAlert
+    ShieldAlert,
+    Eye,
+    EyeOff
 } from 'lucide-react';
 
 export default function CollectorOnboarding({ onOnboardingComplete }) {
@@ -21,6 +23,8 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
     const [accessCode, setAccessCode] = useState('');
     const [isUnlocked, setIsUnlocked] = useState(false);
     const [codeError, setCodeError] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showAccessCode, setShowAccessCode] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -101,7 +105,7 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
                         <div className="relative">
                             <KeyRound size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
                             <input
-                                type="password"
+                                type={showAccessCode ? "text" : "password"}
                                 value={accessCode}
                                 onChange={(e) => {
                                     setAccessCode(e.target.value);
@@ -109,8 +113,17 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
                                 }}
                                 required
                                 autoFocus
-                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-black text-center tracking-widest text-slate-800 focus:outline-none focus:border-brand-primary uppercase"
+                                className="w-full pl-10 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-black text-center tracking-widest text-slate-800 focus:outline-none focus:border-brand-primary uppercase"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowAccessCode(!showAccessCode)}
+                                className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                                tabIndex="-1"
+                                aria-label={showAccessCode ? "Hide access code" : "Show access code"}
+                            >
+                                {showAccessCode ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
                         </div>
 
                         {codeError && (
@@ -211,13 +224,22 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
                             <div className="relative">
                                 <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     placeholder="Set account password"
                                     required
                                     value={formData.password}
                                     onChange={(e) => handleChange('password', e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
+                                    className="w-full pl-10 pr-11 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                                    tabIndex="-1"
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
                         </div>
 

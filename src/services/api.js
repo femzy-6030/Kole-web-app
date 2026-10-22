@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
 
-export const API_BASE_URL = 'https://kole-pi.vercel.app/api/v1/';
+export const API_BASE_URL = import.meta.env.DEV ? '/api/v1/' : 'https://kole-pi.vercel.app/api/v1/';
 
 // Create configured Axios instance
 const api = axios.create({
@@ -142,17 +142,50 @@ api.interceptors.response.use(
 
 export const auth = {
     /**
-     * Authenticate user with credentials via POST /token/ or fallback /auth/login/
-     * @param {Object} payload - { email/username, password }
+     * Authenticate user with credentials via POST /token/ (with fallback to /auth/login/ on 404)
+     * @param {Object} payload - { username, password }
      */
     login: async (payload) => {
+        const username = (payload.username || payload.email || '').trim();
+        const password = payload.password || '';
+
+        const tokenPayload = {
+            username: username,
+            password: password,
+        };
+
+        // If username is an email address, also attach email field for DRF compatibility
+        if (username.includes('@')) {
+            tokenPayload.email = username;
+        }
+
+        const normalizeTokens = (data) => {
+            if (!data) return data;
+            const access = data.access || data.access_token || data.accessToken || data.token;
+            const refresh = data.refresh || data.refresh_token || data.refreshToken;
+            return {
+                ...data,
+                access,
+                refresh,
+                accessToken: access,
+                refreshToken: refresh,
+            };
+        };
+
         try {
-            const response = await api.post('token/', payload);
-            return response.data;
+            // POST https://kole-pi.vercel.app/api/v1/token/
+            const response = await api.post('token/', tokenPayload);
+            return normalizeTokens(response.data);
         } catch (err) {
+            // If the deployed backend returns 404 for /token/, fall back to /auth/login/
             if (err.response?.status === 404) {
-                const fallbackRes = await api.post('auth/login/', payload);
-                return fallbackRes.data;
+                const fallbackPayload = {
+                    email: tokenPayload.email || tokenPayload.username,
+                    username: tokenPayload.username,
+                    password: tokenPayload.password,
+                };
+                const fallbackRes = await api.post('auth/login/', fallbackPayload);
+                return normalizeTokens(fallbackRes.data);
             }
             throw err;
         }
@@ -173,7 +206,45 @@ export const auth = {
      * @param {Object} payload - Registration details
      */
     register: async (payload) => {
-        const response = await api.post('auth/register/', payload);
+        // Map role to backend choices: RESIDENT | COLLECTOR_ADMIN | COLLECTOR_DRIVER
+        let backendRole = 'RESIDENT';
+        const roleLower = (payload.role || '').toLowerCase();
+        if (roleLower === 'organization' || roleLower === 'collector_admin' || roleLower === 'collector') {
+            backendRole = 'COLLECTOR_ADMIN';
+        } else if (roleLower === 'driver' || roleLower === 'collector_driver') {
+            backendRole = 'COLLECTOR_DRIVER';
+        }
+
+        // Split full name if first_name / last_name are not explicitly provided
+        const rawName = (payload.full_name || payload.fullName || payload.name || '').trim();
+        let firstName = payload.first_name || '';
+        let lastName = payload.last_name || '';
+        if (!firstName && rawName) {
+            const parts = rawName.split(' ');
+            firstName = parts[0] || '';
+            lastName = parts.slice(1).join(' ') || firstName;
+        }
+
+        const cleanEmail = (payload.email || payload.username || '').trim();
+        const cleanPhone = (payload.phone || payload.phone_number || payload.phoneNumber || '').trim();
+
+        const formattedPayload = {
+            email: cleanEmail,
+            password: payload.password,
+            first_name: firstName,
+            last_name: lastName,
+            phone: cleanPhone,
+            role: backendRole,
+        };
+
+        if (backendRole === 'COLLECTOR_ADMIN') {
+            formattedPayload.collector_profile = {
+                organization_name: payload.organization_name || payload.orgName || rawName || 'Fleet Operator',
+                operating_license_num: payload.operating_license_num || payload.license || 'LIC-' + Math.floor(1000 + Math.random() * 9000),
+            };
+        }
+
+        const response = await api.post('auth/register/', formattedPayload);
         return response.data;
     },
 };

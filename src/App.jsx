@@ -14,6 +14,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AreaSelector from "./components/common/AreaSelector";
 import { AnnouncementModal } from './components/common/AwarenessCarousel';
 import koleLogo from './assets/Kole.png';
+import { auth } from './services/api';
 import Button from './components/common/Button';
 import {
     User,
@@ -23,7 +24,10 @@ import {
     ArrowLeft,
     Truck,
     ShieldCheck,
-    ShieldAlert
+    ShieldAlert,
+    AlertCircle,
+    Eye,
+    EyeOff
 } from 'lucide-react';
 
 // ==========================================
@@ -63,10 +67,15 @@ export default function App() {
     };
 
     // Shared Auth Form Fields
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [pin, setPin] = useState('');
     const [rememberMe, setRememberMe] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
+    const [authError, setAuthError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showAdminPassword, setShowAdminPassword] = useState(false);
 
     // New User Form Fields
     const [fullName, setFullName] = useState('');
@@ -91,55 +100,193 @@ export default function App() {
     // Organization Settings Toggle
     const [showOrgSettings, setShowOrgSettings] = useState(false);
 
-    const handleAuthSubmit = (e) => {
+    const handleAuthSubmit = async (e) => {
         e.preventDefault();
+        setAuthError('');
         setIsLoading(true);
 
-        setTimeout(() => {
-            setIsLoading(false);
+        // Autofill sync: extract directly from form elements in case browser autofill didn't trigger React onChange
+        const form = e.currentTarget;
+        const enteredUsername = (form.elements.username?.value || username || phoneNumber).trim();
+        const enteredPassword = form.elements.password?.value || password || pin;
 
-            let userData = {};
-
-            if (selectedRole === 'organization') {
-                userData = {
-                    id: `ORG-${Math.floor(1000 + Math.random() * 9000)}`,
-                    orgName: orgName.trim() || (authMode === 'login' ? 'Organization Account' : 'Registered Organization'),
-                    officerInCharge: officerName.trim() || 'Officer-in-Charge',
-                    phoneNumber: phoneNumber.trim(),
-                    Area: Area || 'Oke-Fia',
-                    address: address.trim(),
-                    pickupBay: pickupBay.trim(),
-                };
-            } else {
-                // Customer role
-                userData = {
-                    id: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
-                    fullName: fullName.trim() || (phoneNumber.trim() ? `Customer (${phoneNumber.trim().slice(-4)})` : 'Valued Customer'),
-                    phoneNumber: phoneNumber.trim(),
-                    Area: Area || 'Oke-Fia',
-                    address: address.trim(),
-                };
+        if (authMode === 'login') {
+            if (!enteredUsername || !enteredPassword) {
+                setIsLoading(false);
+                setAuthError('Please enter both your username/email and password.');
+                return;
             }
 
-            login(userData, selectedRole, rememberMe);
-            setShowAnnouncement(true);
-        }, 600);
+            try {
+                // Call real backend token endpoint: POST https://kole-pi.vercel.app/api/v1/token/
+                const data = await auth.login({
+                    username: enteredUsername,
+                    password: enteredPassword,
+                });
+
+                // Extract access and refresh tokens
+                const accessToken = data?.access || data?.access_token || data?.token;
+                const refreshToken = data?.refresh || data?.refresh_token;
+
+                if (!accessToken) {
+                    throw new Error('No access token returned from authentication service.');
+                }
+
+                // Build authenticated user profile
+                const userData = {
+                    id: data?.user?.id || `USR-${Math.floor(1000 + Math.random() * 9000)}`,
+                    fullName: data?.user?.fullName || data?.user?.name || (selectedRole === 'organization' ? 'Organization Account' : enteredUsername),
+                    email: data?.user?.email || (enteredUsername.includes('@') ? enteredUsername : `${enteredUsername.toLowerCase()}@kole.ng`),
+                    username: enteredUsername,
+                    phoneNumber: data?.user?.phoneNumber || enteredUsername,
+                    Area: Area || 'Oke-Fia',
+                };
+
+                // Store credentials securely in useAuthStore & localStorage
+                login(userData, selectedRole, rememberMe, {
+                    access: accessToken,
+                    refresh: refreshToken,
+                });
+
+                setIsLoading(false);
+                setShowAnnouncement(true);
+            } catch (err) {
+                setIsLoading(false);
+                console.error('[Authentication Failed]', err);
+
+                // Strict error handling: prevent routing, clear any dummy state, display error message
+                const errorMsg =
+                    err.response?.data?.detail ||
+                    err.response?.data?.message ||
+                    (err.response?.status === 401 || err.response?.status === 400
+                        ? 'Invalid username or password. Please check your credentials.'
+                        : 'Invalid username or password. Please check your credentials.');
+
+                setAuthError(errorMsg);
+            }
+        } else {
+            // Register flow
+            try {
+                const cleanEmail = enteredUsername.includes('@') ? enteredUsername : `${enteredUsername.toLowerCase().replace(/[^a-z0-9]/g, '')}@kole.ng`;
+                const regPayload = {
+                    email: cleanEmail,
+                    username: enteredUsername || phoneNumber.trim(),
+                    password: enteredPassword,
+                    phone: phoneNumber.trim(),
+                    full_name: selectedRole === 'organization' ? orgName.trim() : fullName.trim(),
+                    role: selectedRole,
+                    area: Area || 'Oke-Fia',
+                    address: address.trim(),
+                };
+
+                await auth.register(regPayload);
+
+                // Auto-authenticate with POST /token/ after successful registration
+                const data = await auth.login({
+                    username: cleanEmail,
+                    password: enteredPassword,
+                });
+
+                const accessToken = data?.access || data?.access_token || data?.accessToken;
+                const refreshToken = data?.refresh || data?.refresh_token || data?.refreshToken;
+
+                const userData = {
+                    id: data?.user?.id || `USR-${Math.floor(1000 + Math.random() * 9000)}`,
+                    fullName: selectedRole === 'organization' ? orgName : fullName,
+                    email: cleanEmail,
+                    username: regPayload.username,
+                    phoneNumber: phoneNumber.trim(),
+                    Area: Area || 'Oke-Fia',
+                    address: address.trim(),
+                };
+
+                login(userData, selectedRole, rememberMe, {
+                    access: accessToken,
+                    refresh: refreshToken,
+                });
+
+                setIsLoading(false);
+                setShowAnnouncement(true);
+            } catch (err) {
+                setIsLoading(false);
+                console.error('[Registration Error]', err);
+                let regError = 'Registration could not be completed. Please review your details and try again.';
+                if (err.response?.data) {
+                    const d = err.response.data;
+                    if (typeof d === 'string') {
+                        regError = d;
+                    } else if (d.detail) {
+                        regError = d.detail;
+                    } else if (d.message) {
+                        regError = d.message;
+                    } else if (typeof d === 'object') {
+                        const parts = [];
+                        for (const [key, val] of Object.entries(d)) {
+                            const valStr = Array.isArray(val) ? val.join(' ') : String(val);
+                            const label = key === 'non_field_errors' ? '' : `${key.replace(/_/g, ' ')}: `;
+                            parts.push(`${label}${valStr}`);
+                        }
+                        if (parts.length > 0) {
+                            regError = parts.join(' | ');
+                        }
+                    }
+                } else if (err.message) {
+                    regError = err.message;
+                }
+                setAuthError(regError);
+            }
+        }
     };
 
-    const handleAdminLoginSubmit = (e) => {
+    const handleAdminLoginSubmit = async (e) => {
         e.preventDefault();
+        setAuthError('');
         setIsLoading(true);
 
-        setTimeout(() => {
+        const form = e.currentTarget;
+        const enteredUsername = (form.elements.username?.value || username || phoneNumber).trim();
+        const enteredPassword = form.elements.password?.value || password || pin;
+
+        if (!enteredUsername || !enteredPassword) {
             setIsLoading(false);
+            setAuthError('Please enter both your Admin ID and password.');
+            return;
+        }
+
+        try {
+            const data = await auth.login({
+                username: enteredUsername,
+                password: enteredPassword,
+            });
+
+            const accessToken = data?.access || data?.access_token || data?.token;
+            const refreshToken = data?.refresh || data?.refresh_token;
+
+            if (!accessToken) {
+                throw new Error('No access token returned for administrator.');
+            }
+
             const adminData = {
-                id: 'ADM-001',
-                fullName: fullName.trim() || 'System Administrator',
-                phoneNumber: phoneNumber.trim() || '09014603028',
+                id: data?.user?.id || 'ADM-001',
+                fullName: data?.user?.fullName || 'System Administrator',
+                username: enteredUsername,
+                role: 'admin',
             };
-            login(adminData, 'admin', rememberMe);
+
+            login(adminData, 'admin', rememberMe, {
+                access: accessToken,
+                refresh: refreshToken,
+            });
+
+            setIsLoading(false);
             setShowAnnouncement(true);
-        }, 600);
+        } catch (err) {
+            setIsLoading(false);
+            const errorMsg =
+                err.response?.data?.detail ||
+                'Invalid administrator credentials. Access restricted.';
+            setAuthError(errorMsg);
+        }
     };
 
     const renderView = () => {
@@ -200,16 +347,33 @@ export default function App() {
                             </div>
                         </div>
 
+                        {authError && (
+                            <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-rose-700 animate-in fade-in duration-150">
+                                <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                                <div className="flex-1 text-xs">
+                                    <p className="font-bold">Access Denied</p>
+                                    <p className="text-[11px] mt-0.5 text-rose-600 leading-tight">{authError}</p>
+                                </div>
+                            </div>
+                        )}
+
                         <form onSubmit={handleAdminLoginSubmit} className="space-y-4 text-xs">
                             <div>
-                                <label className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">Admin Phone / ID</label>
+                                <label htmlFor="admin-username" className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">Admin Username / Email</label>
                                 <div className="relative">
-                                    <Phone size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                    <User size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
                                     <input
-                                        type="tel"
-                                        placeholder="09014603028"
-                                        value={phoneNumber}
-                                        onChange={(e) => setPhoneNumber(e.target.value)}
+                                        id="admin-username"
+                                        name="username"
+                                        type="text"
+                                        autoComplete="username"
+                                        placeholder="admin"
+                                        value={username}
+                                        onChange={(e) => {
+                                            setUsername(e.target.value);
+                                            setAuthError('');
+                                        }}
+                                        onBlur={(e) => setUsername(e.target.value)}
                                         required
                                         className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
                                     />
@@ -217,18 +381,33 @@ export default function App() {
                             </div>
 
                             <div>
-                                <label className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">4-Digit Admin PIN</label>
+                                <label htmlFor="admin-password" className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">Administrator Password</label>
                                 <div className="relative">
                                     <Lock size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
                                     <input
-                                        type="password"
-                                        maxLength={4}
-                                        placeholder="••••"
-                                        value={pin}
-                                        onChange={(e) => setPin(e.target.value)}
+                                        id="admin-password"
+                                        name="password"
+                                        type={showAdminPassword ? "text" : "password"}
+                                        autoComplete="current-password"
+                                        placeholder="Enter administrator password"
+                                        value={password}
+                                        onChange={(e) => {
+                                            setPassword(e.target.value);
+                                            setAuthError('');
+                                        }}
+                                        onBlur={(e) => setPassword(e.target.value)}
                                         required
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary tracking-widest"
+                                        className="w-full pl-10 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAdminPassword(!showAdminPassword)}
+                                        className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                                        tabIndex="-1"
+                                        aria-label={showAdminPassword ? "Hide password" : "Show password"}
+                                    >
+                                        {showAdminPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
                                 </div>
                             </div>
 
@@ -277,7 +456,7 @@ export default function App() {
                         <div className="p-1 bg-slate-100 rounded-2xl flex items-center gap-1">
                             <button
                                 type="button"
-                                onClick={() => setSelectedRole('customer')}
+                                onClick={() => { setSelectedRole('customer'); setAuthError(''); }}
                                 className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedRole === 'customer'
                                     ? 'bg-white text-brand-primary shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700'
@@ -289,7 +468,7 @@ export default function App() {
 
                             <button
                                 type="button"
-                                onClick={() => setSelectedRole('organization')}
+                                onClick={() => { setSelectedRole('organization'); setAuthError(''); }}
                                 className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedRole === 'organization'
                                     ? 'bg-white text-brand-primary shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700'
@@ -300,9 +479,90 @@ export default function App() {
                             </button>
                         </div>
 
+                        {/* Visible Error Message Banner */}
+                        {authError && (
+                            <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-rose-700 animate-in fade-in duration-150">
+                                <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                                <div className="flex-1 text-xs">
+                                    <p className="font-bold">
+                                        {authMode === 'register' ? 'Registration Issue' : 'Authentication Failed'}
+                                    </p>
+                                    <p className="text-[11px] mt-0.5 text-rose-600 leading-tight">{authError}</p>
+                                    {authMode === 'register' && authError.toLowerCase().includes('already exists') && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setAuthMode('login'); setAuthError(''); }}
+                                            className="mt-2 text-xs font-bold text-brand-primary underline hover:text-brand-dark block cursor-pointer"
+                                        >
+                                            Account exists? Click here to Sign In
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Form */}
                         <form onSubmit={handleAuthSubmit} className="space-y-4 text-xs">
-                            {authMode === 'register' && (
+                            {authMode === 'login' ? (
+                                <>
+                                    <div>
+                                        <label htmlFor="login-username" className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">
+                                            Username or Email
+                                        </label>
+                                        <div className="relative">
+                                            <User size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                            <input
+                                                id="login-username"
+                                                name="username"
+                                                type="text"
+                                                autoComplete="username"
+                                                placeholder="e.g., admin or user@kole.ng"
+                                                value={username}
+                                                onChange={(e) => {
+                                                    setUsername(e.target.value);
+                                                    setAuthError('');
+                                                }}
+                                                onBlur={(e) => setUsername(e.target.value)}
+                                                required
+                                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label htmlFor="login-password" className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">
+                                            Password
+                                        </label>
+                                        <div className="relative">
+                                            <Lock size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                            <input
+                                                id="login-password"
+                                                name="password"
+                                                type={showPassword ? "text" : "password"}
+                                                autoComplete="current-password"
+                                                placeholder="Enter your password"
+                                                value={password}
+                                                onChange={(e) => {
+                                                    setPassword(e.target.value);
+                                                    setAuthError('');
+                                                }}
+                                                onBlur={(e) => setPassword(e.target.value)}
+                                                required
+                                                className="w-full pl-10 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                                                tabIndex="-1"
+                                                aria-label={showPassword ? "Hide password" : "Show password"}
+                                            >
+                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
                                 <>
                                     {selectedRole === 'customer' ? (
                                         <div>
@@ -360,39 +620,76 @@ export default function App() {
                                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
                                         />
                                     </div>
+
+                                    <div>
+                                        <label className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">Phone Number</label>
+                                        <div className="relative">
+                                            <Phone size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                            <input
+                                                type="tel"
+                                                placeholder="08012345678"
+                                                value={phoneNumber}
+                                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                                required
+                                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label htmlFor="reg-username" className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">Username or Email</label>
+                                        <div className="relative">
+                                            <User size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                            <input
+                                                id="reg-username"
+                                                name="username"
+                                                type="text"
+                                                autoComplete="username"
+                                                placeholder="e.g., user@kole.ng"
+                                                value={username}
+                                                onChange={(e) => {
+                                                    setUsername(e.target.value);
+                                                    setAuthError('');
+                                                }}
+                                                onBlur={(e) => setUsername(e.target.value)}
+                                                required
+                                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label htmlFor="reg-password" className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">Password</label>
+                                        <div className="relative">
+                                            <Lock size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                            <input
+                                                id="reg-password"
+                                                name="password"
+                                                type={showPassword ? "text" : "password"}
+                                                autoComplete="new-password"
+                                                placeholder="Create a secure password"
+                                                value={password}
+                                                onChange={(e) => {
+                                                    setPassword(e.target.value);
+                                                    setAuthError('');
+                                                }}
+                                                onBlur={(e) => setPassword(e.target.value)}
+                                                required
+                                                className="w-full pl-10 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                                                tabIndex="-1"
+                                                aria-label={showPassword ? "Hide password" : "Show password"}
+                                            >
+                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </>
                             )}
-
-                            <div>
-                                <label className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">Phone Number</label>
-                                <div className="relative">
-                                    <Phone size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                    <input
-                                        type="tel"
-                                        placeholder="08012345678"
-                                        value={phoneNumber}
-                                        onChange={(e) => setPhoneNumber(e.target.value)}
-                                        required
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">4-Digit Security PIN</label>
-                                <div className="relative">
-                                    <Lock size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                    <input
-                                        type="password"
-                                        maxLength={4}
-                                        placeholder="••••"
-                                        value={pin}
-                                        onChange={(e) => setPin(e.target.value)}
-                                        required
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary tracking-widest"
-                                    />
-                                </div>
-                            </div>
 
                             <div className="flex items-center justify-between text-xs pt-1">
                                 <label className="flex items-center gap-2 cursor-pointer text-slate-600 font-medium select-none">
@@ -407,7 +704,7 @@ export default function App() {
 
                                 {authMode === 'login' && (
                                     <button type="button" className="text-brand-primary font-bold hover:underline">
-                                        Forgot PIN?
+                                        Forgot Password?
                                     </button>
                                 )}
                             </div>

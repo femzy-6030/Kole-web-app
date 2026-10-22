@@ -25,7 +25,7 @@ import {
 // ==========================================
 // CONFIGURABLE PRICING CONFIGURATION
 // ==========================================
-export const DEFAULT_PAYMENT_CONFIG = {
+const DEFAULT_PAYMENT_CONFIG = {
     baseWeeklyRate: 2500, // Includes ₦500 service fee (Base ₦2,000 + ₦500 fee)
     weeklyServiceFee: 500,
     stepIncrement: 1000,
