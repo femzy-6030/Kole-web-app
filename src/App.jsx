@@ -113,7 +113,7 @@ export default function App() {
         if (authMode === 'login') {
             if (!enteredUsername || !enteredPassword) {
                 setIsLoading(false);
-                setAuthError('Please enter both your username/email and password.');
+                setAuthError('Please enter both your phone number/email and password.');
                 return;
             }
 
@@ -140,7 +140,9 @@ export default function App() {
                     email: data?.user?.email || (enteredUsername.includes('@') ? enteredUsername : `${enteredUsername.toLowerCase()}@kole.ng`),
                     username: enteredUsername,
                     phoneNumber: data?.user?.phoneNumber || enteredUsername,
-                    Area: Area || 'Oke-Fia',
+                    Area: Area || data?.user?.area || 'Oke-Fia',
+                    total_pickups: data?.user?.total_pickups ?? 0,
+                    impact_score: data?.user?.impact_score ?? 0,
                 };
 
                 // Store credentials securely in useAuthStore & localStorage
@@ -199,6 +201,8 @@ export default function App() {
                     phoneNumber: phoneNumber.trim(),
                     Area: Area || 'Oke-Fia',
                     address: address.trim(),
+                    total_pickups: 0,
+                    impact_score: 0,
                 };
 
                 login(userData, selectedRole, rememberMe, {
@@ -465,7 +469,7 @@ export default function App() {
                                     }`}
                             >
                                 <User size={15} />
-                                <span>Customer</span>
+                                <span>Household</span>
                             </button>
 
                             <button
@@ -518,7 +522,7 @@ export default function App() {
                                 <>
                                     <div>
                                         <label htmlFor="login-username" className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">
-                                            Username or Email
+                                            Phone Number or Email
                                         </label>
                                         <div className="relative">
                                             <User size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
@@ -527,7 +531,7 @@ export default function App() {
                                                 name="username"
                                                 type="text"
                                                 autoComplete="username"
-                                                placeholder="e.g., admin or user@kole.ng"
+                                                placeholder="e.g. 08012345678 or user@gmail.com"
                                                 value={username}
                                                 onChange={(e) => {
                                                     setUsername(e.target.value);
@@ -648,7 +652,7 @@ export default function App() {
                                     </div>
 
                                     <div>
-                                        <label htmlFor="reg-username" className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">Username or Email</label>
+                                        <label htmlFor="reg-username" className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">Phone Number or Email</label>
                                         <div className="relative">
                                             <User size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
                                             <input
@@ -656,7 +660,7 @@ export default function App() {
                                                 name="username"
                                                 type="text"
                                                 autoComplete="username"
-                                                placeholder="e.g., user@kole.ng"
+                                                placeholder="e.g. 08012345678 or user@gmail.com"
                                                 value={username}
                                                 onChange={(e) => {
                                                     setUsername(e.target.value);

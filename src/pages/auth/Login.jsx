@@ -29,7 +29,7 @@ export default function Login({ onSwitchToRegister }) {
 
         if (!enteredUsername || !enteredPassword) {
             setIsLoading(false);
-            setAuthError('Please enter both your username/email and password.');
+            setAuthError('Please enter both your phone number/email and password.');
             return;
         }
 
@@ -54,7 +54,9 @@ export default function Login({ onSwitchToRegister }) {
                 email: data?.user?.email || (enteredUsername.includes('@') ? enteredUsername : `${enteredUsername.toLowerCase()}@kole.ng`),
                 username: enteredUsername,
                 role: role,
-                Area: 'Oke-Fia',
+                Area: data?.user?.area || data?.user?.Area || 'Oke-Fia',
+                total_pickups: data?.user?.total_pickups ?? 0,
+                impact_score: data?.user?.impact_score ?? 0,
             };
 
             // Save tokens & user session to store and localStorage
@@ -91,7 +93,7 @@ export default function Login({ onSwitchToRegister }) {
                 </p>
             </div>
 
-            {/* Role Toggle: Customer vs Organization */}
+            {/* Role Toggle: Household vs Organization */}
             <div className="p-1 bg-slate-100 rounded-2xl flex items-center gap-1">
                 <button
                     type="button"
@@ -102,7 +104,7 @@ export default function Login({ onSwitchToRegister }) {
                         }`}
                 >
                     <User size={16} />
-                    <span>Customer</span>
+                    <span>Household</span>
                 </button>
 
                 <button
@@ -142,7 +144,7 @@ export default function Login({ onSwitchToRegister }) {
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
                 <div>
                     <label htmlFor="login-username" className="font-bold text-slate-700 uppercase tracking-wide mb-1.5 block">
-                        Username or Email
+                        Phone Number or Email
                     </label>
                     <div className="relative">
                         <User size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
@@ -151,7 +153,7 @@ export default function Login({ onSwitchToRegister }) {
                             name="username"
                             type="text"
                             autoComplete="username"
-                            placeholder="e.g., admin or user@kole.ng"
+                            placeholder="e.g. 08012345678 or user@gmail.com"
                             value={username}
                             onChange={(e) => {
                                 setUsername(e.target.value);

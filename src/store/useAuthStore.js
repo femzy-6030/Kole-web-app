@@ -14,23 +14,22 @@ export const useAuthStore = create(
             tokens: null,
             subscription: null,
 
-            // Active Requests State (Phase 2 Dispatch Pipeline)
-            activeRequests: [
-                {
-                    requestId: '#KL-904102',
-                    title: 'One-Time SOS Pickup',
-                    amount: '₦1,500',
-                    status: 'PENDING_DISPATCH',
-                    address: 'Oke-Fia Junction, Near Station Road',
-                    createdAt: new Date().toISOString()
-                }
-            ],
+            // Active Requests State (Phase 2 Dispatch Pipeline) - Clean Slate
+            activeRequests: [],
 
             login: (userData, role, remember = true, tokens = null) => {
                 const access = tokens?.access || tokens?.accessToken || tokens?.access_token || userData?.access || userData?.accessToken || userData?.access_token || userData?.token || null;
                 const refresh = tokens?.refresh || tokens?.refreshToken || tokens?.refresh_token || userData?.refresh || userData?.refreshToken || userData?.refresh_token || null;
+
+                // Clean slate defaults: newly registered and logged-in users start with 0 pickups & 0 impact score
+                const cleanUser = userData ? {
+                    ...userData,
+                    total_pickups: typeof userData.total_pickups === 'number' ? userData.total_pickups : 0,
+                    impact_score: typeof userData.impact_score === 'number' ? userData.impact_score : 0,
+                } : null;
+
                 set({
-                    user: userData,
+                    user: cleanUser,
                     role: role,
                     isAuthenticated: true,
                     rememberMe: remember,
@@ -90,6 +89,25 @@ export const useAuthStore = create(
         {
             name: 'kole-auth-storage',
             storage: createJSONStorage(() => localStorage),
+            version: 1,
+            migrate: (persistedState) => {
+                if (!persistedState) return persistedState;
+                const activeRequests = (persistedState.activeRequests || []).filter(
+                    (r) => r.requestId !== '#KL-904102'
+                );
+                const user = persistedState.user
+                    ? {
+                        ...persistedState.user,
+                        total_pickups: typeof persistedState.user.total_pickups === 'number' ? persistedState.user.total_pickups : 0,
+                        impact_score: typeof persistedState.user.impact_score === 'number' ? persistedState.user.impact_score : 0,
+                    }
+                    : null;
+                return {
+                    ...persistedState,
+                    activeRequests,
+                    user,
+                };
+            },
         }
     )
 );

@@ -100,10 +100,11 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                     </div>
                 </div>
 
-                <div className="w-48">
+                <div className="w-56">
                     <AreaSelector
                         selectedArea={selectedArea}
                         onAreaChange={handleAreaChange}
+                        compact={true}
                     />
                 </div>
             </div>

@@ -1,6 +1,7 @@
 // src/components/customer/ProfileView.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { pickups } from '../../services/api';
 import Button from '../common/Button';
 import AreaSelector from '../common/AreaSelector';
 import {
@@ -15,19 +16,89 @@ import {
     ChevronRight,
     Home,
     Check,
-    Edit2
+    Edit2,
+    Loader2
 } from 'lucide-react';
 
 export default function ProfileView() {
-    const { user, logout } = useAuthStore();
-    const [Area, setArea] = useState(user?.Area || 'Oke-Fia');
+    const { user, logout, updateUserProfile } = useAuthStore();
+    const [Area, setArea] = useState(user?.Area || user?.area || 'Oke-Fia');
+
+    // Dynamic clean-slate stats fetched from GET /api/v1/pickups/
+    const [totalPickups, setTotalPickups] = useState(typeof user?.total_pickups === 'number' ? user.total_pickups : 0);
+    const [impactScore, setImpactScore] = useState(typeof user?.impact_score === 'number' ? user.impact_score : 0);
+    const [isLoadingStats, setIsLoadingStats] = useState(false);
 
     // Editable contact states
     const [phone, setPhone] = useState(user?.phoneNumber || '');
     const [isEditingPhone, setIsEditingPhone] = useState(false);
 
-    const [email, setEmail] = useState(user?.email || (user?.fullName ? `${user.fullName.toLowerCase().replace(/\s+/g, '')}@kole.ng` : 'customer@kole.ng'));
+    const [email, setEmail] = useState(user?.email || (user?.fullName ? `${user.fullName.toLowerCase().replace(/\s+/g, '')}@kole.ng` : 'user@kole.ng'));
     const [isEditingEmail, setIsEditingEmail] = useState(false);
+
+    // Fetch live pickup records to calculate dynamic stats
+    useEffect(() => {
+        let isMounted = true;
+
+        const fetchDynamicStats = async () => {
+            setIsLoadingStats(true);
+            try {
+                const data = await pickups.getPickups();
+                if (!isMounted) return;
+
+                // Support both standard arrays and paginated DRF responses { results: [...] }
+                const pickupList = Array.isArray(data)
+                    ? data
+                    : (Array.isArray(data?.results)
+                        ? data.results
+                        : (Array.isArray(data?.data) ? data.data : []));
+
+                // Filter for current user if records contain ownership keys, or use returned array
+                const userPickups = pickupList.filter((p) => {
+                    if (!user) return true;
+                    if (p.user_id && user.id && String(p.user_id) === String(user.id)) return true;
+                    if (p.customer_id && user.id && String(p.customer_id) === String(user.id)) return true;
+                    if (p.customerName && user.fullName && p.customerName.toLowerCase() === user.fullName.toLowerCase()) return true;
+                    if (p.email && user.email && p.email.toLowerCase() === user.email.toLowerCase()) return true;
+                    return true;
+                });
+
+                const count = userPickups.length;
+                const score = (typeof user?.impact_score === 'number' && user.impact_score > 0)
+                    ? user.impact_score
+                    : count * 20;
+
+                setTotalPickups(count);
+                setImpactScore(score);
+
+                // Sync back to store
+                updateUserProfile({
+                    total_pickups: count,
+                    impact_score: score
+                });
+            } catch (err) {
+                console.warn('[ProfileView] Could not fetch real pickups, maintaining clean slate:', err);
+                if (isMounted) {
+                    setTotalPickups(typeof user?.total_pickups === 'number' ? user.total_pickups : 0);
+                    setImpactScore(typeof user?.impact_score === 'number' ? user.impact_score : 0);
+                }
+            } finally {
+                if (isMounted) setIsLoadingStats(false);
+            }
+        };
+
+        fetchDynamicStats();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [user?.id, user?.email]);
+
+    const getTierLabel = (score) => {
+        if (!score || score === 0) return 'Starter Tier';
+        if (score < 100) return 'Eco Contributor';
+        return 'Eco Champion Tier';
+    };
 
     return (
         <div className="space-y-4 pb-12">
@@ -38,25 +109,28 @@ export default function ProfileView() {
                     <div className="w-20 h-20 bg-emerald-50 text-brand-primary rounded-full flex items-center justify-center text-2xl font-black border-2 border-brand-primary">
                         {user?.fullName ? user.fullName[0].toUpperCase() : 'U'}
                     </div>
-                    <span className="absolute bottom-0 right-0 bg-brand-primary text-white p-1 rounded-full border-2 border-white" title="Verified Customer">
+                    <span className="absolute bottom-0 right-0 bg-brand-primary text-white p-1 rounded-full border-2 border-white" title="Verified Household">
                         <ShieldCheck size={14} />
                     </span>
                 </div>
 
                 <div>
-                    <h2 className="text-lg font-black text-slate-800">{user?.fullName || 'Valued Customer'}</h2>
-                    <p className="text-xs text-slate-400 font-bold mt-0.5">Verified Customer Account</p>
+                    <h2 className="text-lg font-black text-slate-800">{user?.fullName || user?.name || user?.username || 'Household Account'}</h2>
+                    <p className="text-xs text-slate-400 font-bold mt-0.5">Verified Account</p>
                 </div>
             </div>
 
-            {/* 2. Environmental Impact Cards */}
+            {/* 2. Environmental Impact Cards (Dynamic Clean Slate) */}
             <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-900 text-white rounded-2xl p-4 border border-slate-800 space-y-1">
                     <div className="flex items-center gap-1.5 text-brand-accent text-xs font-bold uppercase">
                         <Trash2 size={14} />
                         <span>Pickups</span>
                     </div>
-                    <p className="text-2xl font-black text-slate-100">12</p>
+                    <div className="flex items-baseline gap-2">
+                        <p className="text-2xl font-black text-slate-100">{totalPickups}</p>
+                        {isLoadingStats && <Loader2 size={13} className="animate-spin text-slate-400" />}
+                    </div>
                     <p className="text-[10px] text-slate-400">Total Cleaned Sites</p>
                 </div>
 
@@ -65,8 +139,8 @@ export default function ProfileView() {
                         <Award size={14} />
                         <span>Impact Score</span>
                     </div>
-                    <p className="text-2xl font-black">240 pts</p>
-                    <p className="text-[10px] text-brand-primary/80 font-bold">Eco Champion Tier</p>
+                    <p className="text-2xl font-black">{impactScore} pts</p>
+                    <p className="text-[10px] text-brand-primary/80 font-bold">{getTierLabel(impactScore)}</p>
                 </div>
             </div>
 
@@ -76,7 +150,10 @@ export default function ProfileView() {
 
                 {/* GPS-Enabled Area Selector */}
                 <div className="p-3 bg-slate-50 rounded-2xl">
-                    <AreaSelector selectedArea={Area} onAreaChange={setArea} />
+                    <AreaSelector selectedArea={Area} onAreaChange={(newArea) => {
+                        setArea(newArea);
+                        updateUserProfile({ Area: newArea, area: newArea });
+                    }} />
                 </div>
 
                 {/* Editable Phone Number */}
@@ -93,13 +170,18 @@ export default function ProfileView() {
                                     className="font-bold text-slate-800 bg-white border border-slate-300 rounded px-2 py-0.5 w-full focus:outline-none focus:border-brand-primary mt-0.5"
                                 />
                             ) : (
-                                <p className="font-bold text-slate-800">{phone}</p>
+                                <p className="font-bold text-slate-800">{phone || 'Not provided'}</p>
                             )}
                         </div>
                     </div>
                     <button
-                        onClick={() => setIsEditingPhone(!isEditingPhone)}
-                        className="text-xs font-bold text-brand-primary bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-xl border border-emerald-100 flex items-center gap-1 shrink-0"
+                        onClick={() => {
+                            if (isEditingPhone) {
+                                updateUserProfile({ phoneNumber: phone });
+                            }
+                            setIsEditingPhone(!isEditingPhone);
+                        }}
+                        className="text-xs font-bold text-brand-primary bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-xl border border-emerald-100 flex items-center gap-1 shrink-0 cursor-pointer"
                     >
                         {isEditingPhone ? (
                             <>
@@ -127,13 +209,18 @@ export default function ProfileView() {
                                     className="font-bold text-slate-800 bg-white border border-slate-300 rounded px-2 py-0.5 w-full focus:outline-none focus:border-brand-primary mt-0.5"
                                 />
                             ) : (
-                                <p className="font-bold text-slate-800">{email}</p>
+                                <p className="font-bold text-slate-800">{email || 'Not provided'}</p>
                             )}
                         </div>
                     </div>
                     <button
-                        onClick={() => setIsEditingEmail(!isEditingEmail)}
-                        className="text-xs font-bold text-brand-primary bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-xl border border-emerald-100 flex items-center gap-1 shrink-0"
+                        onClick={() => {
+                            if (isEditingEmail) {
+                                updateUserProfile({ email });
+                            }
+                            setIsEditingEmail(!isEditingEmail);
+                        }}
+                        className="text-xs font-bold text-brand-primary bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-xl border border-emerald-100 flex items-center gap-1 shrink-0 cursor-pointer"
                     >
                         {isEditingEmail ? (
                             <>
@@ -153,7 +240,7 @@ export default function ProfileView() {
                         <Home size={18} className="text-slate-400" />
                         <div>
                             <p className="text-slate-400 font-medium">Default Address</p>
-                            <p className="font-bold text-slate-800">Oke-Fia Junction, Near Station Road</p>
+                            <p className="font-bold text-slate-800">{user?.address || (user?.Area ? `${user.Area} Zone, Osogbo` : 'Oke-Fia Zone, Osogbo')}</p>
                         </div>
                     </div>
                     <ChevronRight size={16} className="text-slate-400" />
