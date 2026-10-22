@@ -87,7 +87,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
     };
 
     return (
-        <div className="space-y-4 max-w-lg mx-auto pb-24 px-1">
+        <div className="max-w-md mx-auto w-full px-4 space-y-4 pb-24">
 
             {/* 1. Global Brand Header Bar */}
             <HeaderBar />
@@ -104,7 +104,7 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                     </div>
                 </div>
 
-                <div className="w-56">
+                <div className="flex-1 min-w-0 max-w-[180px] sm:max-w-[220px]">
                     <AreaSelector
                         selectedArea={selectedArea}
                         onAreaChange={handleAreaChange}

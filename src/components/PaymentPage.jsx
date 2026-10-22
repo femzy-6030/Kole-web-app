@@ -246,6 +246,7 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
             amount: finalAmountInKobo, // Computed 1-week or 4-week total in kobo
             plan_type: billingCycle,
             email: customerEmail,
+            callback_url: 'https://app.kole.com.ng/payment-success',
             metadata: {
                 billing_cycle: billingCycle,
                 area: customerArea,
@@ -335,7 +336,8 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
     // ==========================================
     if (status === 'success' && successData) {
         return (
-            <div className="max-w-md mx-auto w-full bg-white rounded-3xl p-6 sm:p-7 border border-emerald-100 shadow-2xl text-center space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="max-w-md mx-auto w-full px-4">
+                <div className="w-full bg-white rounded-3xl p-6 sm:p-7 border border-emerald-100 shadow-2xl text-center space-y-5 animate-in fade-in zoom-in-95 duration-200">
                 <div className="relative mx-auto w-20 h-20">
                     <div className="absolute inset-0 bg-emerald-400/20 rounded-full animate-ping opacity-75" />
                     <div className="relative w-20 h-20 bg-gradient-to-tr from-emerald-600 to-teal-500 text-white rounded-full flex items-center justify-center shadow-lg mx-auto">
@@ -410,6 +412,7 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                 >
                     <Sparkles size={16} /> Return to Dashboard
                 </Button>
+                </div>
             </div>
         );
     }
@@ -418,7 +421,7 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
     // RENDER: MAIN PAYMENT & CALCULATION VIEW
     // ==========================================
     return (
-        <div className="max-w-md mx-auto w-full space-y-4 pb-8">
+        <div className="max-w-md mx-auto w-full px-4 space-y-4 pb-8">
             {/* Top Navigation & Status Bar */}
             <div className="flex items-center justify-between">
                 <button

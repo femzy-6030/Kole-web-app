@@ -226,7 +226,11 @@ export const payments = {
      * @param {Object} data - { amount: in kobo, plan_type: "monthly", ... }
      */
     initializePayment: async (data) => {
-        const response = await api.post('payments/initialize/', data);
+        const payload = {
+            callback_url: data?.callback_url || 'https://app.kole.com.ng/payment-success',
+            ...data,
+        };
+        const response = await api.post('payments/initialize/', payload);
         return response.data;
     },
 
