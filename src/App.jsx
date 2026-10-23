@@ -787,11 +787,10 @@ export default function App() {
                         {/* Continue with Google (OAuth) */}
                         {authMode === 'login' && (
                             <div className="space-y-3 pt-1">
-                                <div className="relative flex items-center justify-center">
-                                    <div className="border-t border-slate-200 w-full" />
-                                    <span className="bg-white px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider relative">
-                                        Or continue with
-                                    </span>
+                                <div className="flex items-center my-4">
+                                    <hr className="flex-grow border-gray-200" />
+                                    <span className="px-3 text-xs text-gray-400 uppercase tracking-wider font-medium">OR</span>
+                                    <hr className="flex-grow border-gray-200" />
                                 </div>
 
                                 <button

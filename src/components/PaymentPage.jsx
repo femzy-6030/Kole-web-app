@@ -487,7 +487,7 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
     // RENDER: MAIN PAYMENT & CALCULATION VIEW
     // ==========================================
     return (
-        <div className="max-w-md mx-auto w-full px-4 space-y-4 pb-8">
+        <div className="max-w-md mx-auto w-full px-4 space-y-4 pb-24">
             {/* Top Navigation & Status Bar */}
             <div className="flex items-center justify-between">
                 <button
@@ -661,47 +661,29 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                             <ChevronDown size={16} />
                         </div>
                     </div>
-
-                    <div className="flex items-start gap-1.5 p-2 bg-emerald-50/70 rounded-xl border border-emerald-100 text-[10.5px] text-slate-600">
-                        <Info size={14} className="text-brand-primary shrink-0 mt-0.5" />
-                        <span>
-                            Base Weekly Rate starts at <strong>₦2,500/week</strong> (includes ₦500 service fee).{' '}
-                            {isMonthly
-                                ? 'Billed as a 4-week continuous monthly plan.'
-                                : 'Billed as a 1-week pass with manual weekly renewal.'
-                            }
-                        </span>
-                    </div>
                 </div>
 
-                {/* SAVED CUSTOMER & DISPATCH LOCATION CARD */}
-                <div className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200/80 space-y-2">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
-                        Customer & Service Location
+                {/* Essential Service Zone Card */}
+                <div className="bg-slate-50/90 rounded-2xl p-3.5 border border-slate-200/80 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                            <MapPin size={16} />
+                        </div>
+                        <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                Service Zone
+                            </span>
+                            <span className="font-black text-slate-900 text-xs">
+                                {customerArea} Zone, Osogbo
+                            </span>
+                        </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md">
+                        Active Cluster
                     </span>
-
-                    <div className="space-y-1.5 text-slate-700 font-medium">
-                        <div className="flex items-center gap-2">
-                            <User size={14} className="text-slate-400 shrink-0" />
-                            <span className="font-bold text-slate-900">{customerName}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <Phone size={14} className="text-slate-400 shrink-0" />
-                            <span>{customerPhone}</span>
-                        </div>
-
-                        <div className="pt-2 border-t border-slate-200/60 flex items-start gap-2">
-                            <MapPin size={14} className="text-emerald-600 shrink-0 mt-0.5" />
-                            <div>
-                                <p className="font-bold text-slate-900">{customerAddress}</p>
-                                <p className="text-[10px] text-slate-500">Operating Cluster: {customerArea}</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
-                {/* ORDER SUMMARY & DYNAMIC CALCULATION BREAKDOWN */}
+                {/* ORDER SUMMARY & CALCULATION BREAKDOWN */}
                 <div className="bg-gradient-to-b from-slate-50 to-emerald-50/40 rounded-2xl p-4 border border-slate-200 space-y-3">
                     <div className="flex justify-between items-center pb-2 border-b border-slate-200/80">
                         <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
@@ -712,50 +694,20 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                         </span>
                     </div>
 
-                    <div className="space-y-2 text-xs">
-                        {/* Weekly Base Subtotal */}
-                        <div className="flex justify-between items-center text-slate-600">
-                            <span>Base Doorstep Evacuation ({isMonthly ? '₦2,000 × 4 wks' : 'Base Rate'})</span>
-                            <span className="font-bold text-slate-800">₦{breakdownBaseSubtotal.toLocaleString()}</span>
+                    <div className="space-y-2.5 text-xs">
+                        {/* Single Clean Weekly Rate Line */}
+                        <div className="flex justify-between items-center text-slate-700">
+                            <span className="font-semibold">Weekly Rate:</span>
+                            <span className="font-black text-slate-900">₦{selectedWeeklyTotal.toLocaleString()}</span>
                         </div>
 
-                        {/* Weekly Volume Upgrade */}
-                        <div className="flex justify-between items-center text-slate-600">
-                            <span>
-                                Volume Upgrade ({selectedVolumeAddon > 0 ? (isMonthly ? `+₦${selectedVolumeAddon.toLocaleString()} × 4 wks` : `+₦${selectedVolumeAddon.toLocaleString()}/wk`) : 'Standard'})
-                            </span>
-                            <span className={`font-bold ${selectedVolumeAddon > 0 ? 'text-brand-primary' : 'text-slate-400'}`}>
-                                {breakdownVolumeAddon > 0 ? `+₦${breakdownVolumeAddon.toLocaleString()}` : '₦0 (Included)'}
-                            </span>
-                        </div>
-
-                        {/* Weekly Service Fee */}
-                        <div className="flex justify-between items-center text-slate-600">
-                            <div className="flex items-center gap-1">
-                                <span>Platform & Service Fee ({isMonthly ? '₦500 × 4 wks' : '₦500 fixed'})</span>
-                                <span className="text-[9px] text-slate-400 bg-slate-200 px-1.5 py-0.2 rounded font-semibold">
-                                    Fixed
-                                </span>
+                        {/* Billing period duration for monthly */}
+                        {isMonthly && (
+                            <div className="flex justify-between items-center text-[11px] text-slate-500">
+                                <span>Duration:</span>
+                                <span className="font-medium text-slate-700">4 Consecutive Weeks (₦{selectedWeeklyTotal.toLocaleString()} × 4)</span>
                             </div>
-                            <span className="font-bold text-slate-800">₦{breakdownServiceFee.toLocaleString()}</span>
-                        </div>
-
-                        {/* Weekly Subtotal Line */}
-                        <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-slate-800 font-bold">
-                            <span>Weekly Tier Rate</span>
-                            <span className="text-brand-primary">₦{selectedWeeklyTotal.toLocaleString()} / wk</span>
-                        </div>
-
-                        {/* Multiplier Line */}
-                        <div className="flex justify-between items-center text-[11px] text-slate-500 bg-white/80 p-2 rounded-xl border border-slate-200/60">
-                            <span>Billing Formula:</span>
-                            <span className="font-mono font-bold text-slate-800">
-                                {isMonthly
-                                    ? `₦${selectedWeeklyTotal.toLocaleString()}/wk × 4 Weeks = ₦${finalComputedTotal.toLocaleString()}`
-                                    : `₦${selectedWeeklyTotal.toLocaleString()} × 1 Week = ₦${finalComputedTotal.toLocaleString()}`
-                                }
-                            </span>
-                        </div>
+                        )}
 
                         {/* Final Calculated Total */}
                         <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 text-sm">

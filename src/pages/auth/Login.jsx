@@ -249,9 +249,10 @@ export default function Login({ onSwitchToRegister }) {
                 </form>
 
                 {/* Google Sign-In Divider */}
-                <div className="relative flex items-center justify-center my-1">
-                    <div className="border-t border-slate-200 w-full" />
-                    <span className="bg-white px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider relative">or</span>
+                <div className="flex items-center my-4">
+                    <hr className="flex-grow border-gray-200" />
+                    <span className="px-3 text-xs text-gray-400 uppercase tracking-wider font-medium">OR</span>
+                    <hr className="flex-grow border-gray-200" />
                 </div>
 
                 {/* Prominent Google OAuth Standard Button */}
