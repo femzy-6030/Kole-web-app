@@ -1,7 +1,7 @@
 // src/components/PaymentPage.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { payments } from '../services/api';
+import { payments, getAuthToken } from '../services/api';
 import Button from './common/Button';
 import {
     CreditCard,
@@ -34,7 +34,7 @@ const DEFAULT_PAYMENT_CONFIG = {
 };
 
 export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) {
-    const { user, updateUserProfile, setSubscription, addActiveRequest } = useAuthStore();
+    const { user, isAuthenticated, logout, updateUserProfile, setSubscription, addActiveRequest } = useAuthStore();
 
     // 1. Configurable Pricing State (Editable by Admin or via state)
     const [pricingConfig, setPricingConfig] = useState(DEFAULT_PAYMENT_CONFIG);
@@ -239,6 +239,24 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
 
     // 6. Paystack Checkout Flow Trigger
     const handleProceedToPaystack = async () => {
+        // Step 0: Session & Token Verification
+        const token = getAuthToken();
+
+        if (!isAuthenticated || !token) {
+            console.warn('[Payment Checkout] No active authenticated session or token found. Redirecting to login...');
+            useAuthStore.getState().logout();
+            setErrorMessage('Session expired. Please log in again to complete your payment.');
+            setStatus('error');
+            setTimeout(() => {
+                if (typeof onBack === 'function') {
+                    onBack();
+                } else {
+                    window.location.href = '/login';
+                }
+            }, 1200);
+            return;
+        }
+
         setStatus('initializing');
         setErrorMessage('');
 
@@ -259,15 +277,49 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
             },
         };
 
+        // STEP 1: POST /payments/initialize/ passing computed total in kobo with Authorization: Bearer ${token}
+        let initResponse = null;
         try {
-            // STEP 1: POST /payments/initialize/ passing computed total in kobo
-            let initResponse = null;
-            try {
-                initResponse = await payments.initializePayment(payload);
-            } catch (initErr) {
-                console.warn('[Paystack Initialize] Backend API notice:', initErr);
+            initResponse = await payments.initializePayment(payload, token);
+        } catch (initErr) {
+            console.error('[Paystack Checkout Initialization Error]', initErr);
+
+            const status = initErr?.response?.status;
+            const is401 = status === 401 || status === 403;
+            const isNetworkErr = !initErr?.response || initErr?.code === 'ERR_NETWORK';
+
+            if (is401) {
+                useAuthStore.getState().logout();
+                setErrorMessage('Session expired. Please log in again to complete your payment.');
+                setStatus('error');
+                setTimeout(() => {
+                    if (typeof onBack === 'function') {
+                        onBack();
+                    } else {
+                        window.location.href = '/login';
+                    }
+                }, 1500);
+                return;
             }
 
+            if (isNetworkErr) {
+                setErrorMessage('Network connection error. Please check your internet connection and try again.');
+                setStatus('error');
+                return;
+            }
+
+            // Other backend errors (e.g. 400 or 500)
+            const detailMsg =
+                initErr?.response?.data?.detail ||
+                initErr?.response?.data?.message ||
+                initErr?.message ||
+                'Unable to initiate Paystack checkout. Please try again.';
+            setErrorMessage(detailMsg);
+            setStatus('error');
+            return;
+        }
+
+        try {
             const data = initResponse?.data || initResponse || {};
             const authUrl = data.authorization_url || data.authorizationUrl;
             const ref = data.reference || `KL-PAY-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -288,9 +340,23 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                 return;
             }
 
+            // STEP 3: Resolve Paystack Public Key via backend response or environment fallback
+            const paystackKey =
+                data.public_key ||
+                data.publicKey ||
+                data.key ||
+                import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+
+            if (!paystackKey) {
+                console.error('[Paystack Checkout] Missing Paystack Public Key. Neither backend nor VITE_PAYSTACK_PUBLIC_KEY provided one.');
+                setErrorMessage('Payment configuration error: Paystack Public Key is missing. Please contact support.');
+                setStatus('error');
+                return;
+            }
+
             if (window.PaystackPop && typeof window.PaystackPop.setup === 'function') {
                 const handler = window.PaystackPop.setup({
-                    key: data.public_key || data.key || 'pk_test_d3a8b422a1b9c9d09f3e4e9b7201c1f21139a04a',
+                    key: paystackKey,
                     email: customerEmail,
                     amount: finalAmountInKobo,
                     currency: 'NGN',

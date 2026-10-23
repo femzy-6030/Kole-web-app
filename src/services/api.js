@@ -13,19 +13,43 @@ const api = axios.create({
     timeout: 20000,
 });
 
+// Helper: Extract valid JWT access token from Zustand store or localStorage fallback
+export const getAuthToken = () => {
+    try {
+        const state = useAuthStore.getState();
+        let token =
+            state.accessToken ||
+            state.tokens?.access ||
+            state.tokens?.access_token ||
+            state.user?.access ||
+            state.user?.access_token ||
+            state.user?.token;
+
+        if (!token) {
+            const raw = localStorage.getItem('kole-auth-storage');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                const s = parsed?.state;
+                token =
+                    s?.accessToken ||
+                    s?.tokens?.access ||
+                    s?.tokens?.access_token ||
+                    s?.user?.access ||
+                    s?.user?.access_token ||
+                    s?.user?.token;
+            }
+        }
+        return token || null;
+    } catch {
+        return null;
+    }
+};
+
 // Request Interceptor: Automatically attach Bearer token from useAuthStore
 api.interceptors.request.use(
     (config) => {
         try {
-            const state = useAuthStore.getState();
-            const token =
-                state.accessToken ||
-                state.tokens?.access ||
-                state.tokens?.access_token ||
-                state.user?.access ||
-                state.user?.access_token ||
-                state.user?.token;
-
+            const token = getAuthToken();
             if (token) {
                 config.headers = config.headers || {};
                 config.headers.Authorization = `Bearer ${token}`;
@@ -223,24 +247,39 @@ export const waitlist = {
 export const payments = {
     /**
      * Initialize payment with backend (Paystack initialization) via POST /payments/initialize/
+     * Ensures Authorization header: Bearer ${token} is explicitly provided
      * @param {Object} data - { amount: in kobo, plan_type: "monthly", ... }
+     * @param {string} [tokenOverride] - Optional JWT token
      */
-    initializePayment: async (data) => {
+    initializePayment: async (data, tokenOverride = null) => {
+        const token = tokenOverride || getAuthToken();
         const payload = {
             callback_url: data?.callback_url || 'https://app.kole.com.ng/payment-success',
             ...data,
         };
-        const response = await api.post('payments/initialize/', payload);
+        const config = {
+            headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+        };
+        const response = await api.post('payments/initialize/', payload, config);
         return response.data;
     },
 
     /**
      * Verify completed Paystack payment by transaction reference via POST /payments/verify/
      * @param {string|Object} reference - Transaction reference string or { reference }
+     * @param {string} [tokenOverride] - Optional JWT token
      */
-    verifyPayment: async (reference) => {
+    verifyPayment: async (reference, tokenOverride = null) => {
+        const token = tokenOverride || getAuthToken();
         const payload = typeof reference === 'string' ? { reference } : reference;
-        const response = await api.post('payments/verify/', payload);
+        const config = {
+            headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+        };
+        const response = await api.post('payments/verify/', payload, config);
         return response.data;
     },
 
