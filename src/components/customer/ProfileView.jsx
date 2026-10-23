@@ -264,7 +264,7 @@ export default function ProfileView() {
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Support & Help</h3>
 
                 <a
-                    href="https://wa.me/2348012345678"
+                    href="https://wa.me/2349014603028"
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl text-xs hover:bg-slate-100 transition-colors"

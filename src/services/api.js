@@ -126,6 +126,24 @@ export const auth = {
     },
 
     /**
+     * Authenticate with Google OAuth via POST /auth/google/
+     * @param {Object} payload - { access_token, credential, role }
+     */
+    googleAuth: async (payload) => {
+        const response = await api.post('auth/google/', payload);
+        const data = response.data;
+        const access = data?.access || data?.access_token || data?.accessToken || data?.token;
+        const refresh = data?.refresh || data?.refresh_token || data?.refreshToken;
+        return {
+            ...data,
+            access,
+            refresh,
+            accessToken: access,
+            refreshToken: refresh,
+        };
+    },
+
+    /**
      * Refresh token method (placeholder, backend sessions re-authenticate via auth/login/)
      */
     refreshToken: async () => {
