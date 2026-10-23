@@ -120,7 +120,15 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                 </div>
 
                 <Button
-                    onClick={() => setIsSOSModalOpen(true)}
+                    onClick={() => {
+                        const coverage = checkZoneCoverage(selectedArea);
+                        if (!coverage.active) {
+                            setUnsupportedAddress(selectedArea);
+                            setIsWaitlistOpen(true);
+                            return;
+                        }
+                        setIsSOSModalOpen(true);
+                    }}
                     className="w-full py-3.5 bg-emerald-600 hover:bg-[#0c633e] text-white text-xs font-black uppercase tracking-wider rounded-2xl flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/40 cursor-pointer border-none"
                 >
                     ⚡ REQUEST INSTANT SOS PICKUP
@@ -242,6 +250,8 @@ export default function CustomerHome({ onNavigateToCheckout }) {
                 isOpen={isWaitlistOpen}
                 onClose={() => setIsWaitlistOpen(false)}
                 userAddress={unsupportedAddress || selectedArea}
+                userName={user?.fullName || ''}
+                userPhone={user?.phoneNumber || ''}
             />
 
             {/* Streamlined Emergency SOS Modal */}

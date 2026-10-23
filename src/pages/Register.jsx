@@ -1,15 +1,28 @@
 // src/pages/Register.jsx
 import React, { useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { auth } from '../services/api';
+import { useClusterStore } from '../store/useClusterStore';
+import { auth, waitlist } from '../services/api';
 import Logo from '../components/common/Logo';
 import Button from '../components/common/Button';
 import GoogleAuthButton from '../components/GoogleAuthButton';
 import AreaSelector from '../components/common/AreaSelector';
-import { User, Building2, Lock, Phone, Mail, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import {
+    User,
+    Building2,
+    Lock,
+    Phone,
+    Mail,
+    AlertCircle,
+    Eye,
+    EyeOff,
+    CheckCircle2,
+    MessageSquare
+} from 'lucide-react';
 
 export default function Register({ onSwitchToLogin }) {
     const { login } = useAuthStore();
+    const isClusterActive = useClusterStore((state) => state.isClusterActive);
 
     const [role, setRole] = useState('customer'); // 'customer' (Household) | 'organization'
     const [fullName, setFullName] = useState('');
@@ -22,6 +35,9 @@ export default function Register({ onSwitchToLogin }) {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [authError, setAuthError] = useState('');
+    const [isWaitlistScreen, setIsWaitlistScreen] = useState(false);
+
+    const isAreaActive = isClusterActive(area);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -31,9 +47,33 @@ export default function Register({ onSwitchToLogin }) {
         const cleanEmail = email.trim().toLowerCase();
         const cleanName = (role === 'organization' ? orgName : fullName).trim();
 
-        if (!cleanEmail || !password || !cleanName) {
+        if (!cleanEmail || !cleanName) {
             setIsLoading(false);
             setAuthError('Please fill in all required registration fields.');
+            return;
+        }
+
+        // Household user selecting a non-active cluster: route to waitlist and submit to POST /api/v1/waitlist/
+        if (role === 'customer' && !isAreaActive) {
+            try {
+                await waitlist.registerWaitlist({
+                    phone: phoneNumber.trim() || cleanEmail,
+                    area_name: area,
+                    full_name: cleanName,
+                    account_type: 'household',
+                    weekly_bags: '2-3 bags',
+                });
+            } catch (wErr) {
+                console.warn('[Register] Waitlist submission notice:', wErr);
+            }
+            setIsLoading(false);
+            setIsWaitlistScreen(true);
+            return;
+        }
+
+        if (!password) {
+            setIsLoading(false);
+            setAuthError('Please provide a secure password.');
             return;
         }
 
@@ -95,6 +135,77 @@ export default function Register({ onSwitchToLogin }) {
             window.location.href = '/login';
         }
     };
+
+    // Dedicated Waitlist Screen Fallback when area is not yet in activeClusters
+    if (isWaitlistScreen) {
+        const referralCode = Math.random().toString(36).substring(7).toUpperCase();
+        const referralLink = `https://kole.ng/waitlist?ref=${referralCode}`;
+        const whatsappMessage = encodeURIComponent(
+            `Hey! I just joined the KÓLẸ̀ waste collection waitlist for ${area}. Join using my link to get priority launch status and a 15% discount voucher: ${referralLink}`
+        );
+
+        return (
+            <div className="max-w-md mx-auto w-full px-4">
+                <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-100 text-center space-y-5 text-xs animate-in fade-in duration-200">
+                    <div className="w-14 h-14 bg-emerald-100 text-brand-primary rounded-full flex items-center justify-center mx-auto shadow-inner">
+                        <CheckCircle2 size={32} />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200">
+                            Expansion Zone Notice
+                        </span>
+                        <h2 className="text-lg font-black text-slate-800 pt-1">
+                            KóLẹ̀ is expanding to your area! Join waitlist
+                        </h2>
+                        <p className="text-slate-500 font-medium leading-relaxed">
+                            Thank you, <strong className="text-slate-800">{(role === 'organization' ? orgName : fullName).trim()}</strong>! We have registered your household on our priority deployment waitlist for <strong className="text-brand-primary">{area} Zone</strong>.
+                        </p>
+                    </div>
+
+                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-left space-y-1.5 text-[11px]">
+                        <p className="text-slate-600"><strong>Registered Contact:</strong> {phoneNumber.trim() || email.trim() || 'Recorded'}</p>
+                        <p className="text-slate-600"><strong>Target Cluster:</strong> {area} Zone</p>
+                        <p className="text-slate-600"><strong>Status:</strong> <span className="text-emerald-700 font-bold">Priority Waitlist Confirmed</span></p>
+                    </div>
+
+                    <p className="text-slate-400 text-[11px] leading-relaxed">
+                        Your zone needs <strong className="text-slate-700">50 households</strong> to trigger dedicated collector deployment. Speed up our arrival in {area} by inviting your neighbors!
+                    </p>
+
+                    <a
+                        href={`https://api.whatsapp.com/send?text=${whatsappMessage}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md text-xs cursor-pointer"
+                    >
+                        <MessageSquare size={16} /> Share via WhatsApp (Unlock 15% Off)
+                    </a>
+
+                    <div className="pt-2 space-y-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setArea('Oke-Fia');
+                                setIsWaitlistScreen(false);
+                            }}
+                            className="w-full py-2.5 text-xs font-bold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer"
+                        >
+                            Switch to Active Zone (Oke-Fia)
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleSwitchLogin}
+                            className="text-xs text-brand-primary font-bold hover:underline cursor-pointer block mx-auto pt-1"
+                        >
+                            ← Back to Sign In
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-md mx-auto w-full px-4">
@@ -213,6 +324,15 @@ export default function Register({ onSwitchToLogin }) {
                     <div>
                         <label className="font-bold text-slate-700 uppercase tracking-wide mb-1 block">Operating Cluster / Zone</label>
                         <AreaSelector selectedArea={area} onAreaChange={setArea} />
+                        {role === 'customer' && !isAreaActive && (
+                            <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] flex items-start gap-2">
+                                <AlertCircle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                                <div>
+                                    <span className="font-bold">Waitlist-Only Area: </span>
+                                    KóLẹ̀ is expanding to <span className="font-bold">"{area}"</span>! Submitting will add your household to our expansion waitlist.
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div>
@@ -224,7 +344,7 @@ export default function Register({ onSwitchToLogin }) {
                                 placeholder="Create a secure password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                required
+                                required={role === 'organization' || isAreaActive}
                                 className="w-full pl-10 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
                             />
                             <button
@@ -239,7 +359,7 @@ export default function Register({ onSwitchToLogin }) {
                     </div>
 
                     <Button type="submit" isLoading={isLoading} className="w-full py-3.5 text-sm font-bold mt-2">
-                        Create Account
+                        {role === 'customer' && !isAreaActive ? 'Join Neighborhood Waitlist' : 'Create Account'}
                     </Button>
                 </form>
 

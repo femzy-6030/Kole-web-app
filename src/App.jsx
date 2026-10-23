@@ -14,7 +14,9 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AreaSelector from "./components/common/AreaSelector";
 import { AnnouncementModal } from './components/common/AwarenessCarousel';
 import koleLogo from './assets/Kole.png';
-import { auth } from './services/api';
+import { auth, waitlist } from './services/api';
+import { useClusterStore } from './store/useClusterStore';
+import WaitlistCaptureModal from './components/common/WaitlistCaptureModal';
 import Button from './components/common/Button';
 import PaymentSuccess from './pages/PaymentSuccess';
 import GoogleAuthButton from './components/GoogleAuthButton';
@@ -58,10 +60,23 @@ export default function App() {
     };
     const [isPaymentSuccessRoute, setIsPaymentSuccessRoute] = useState(checkIsPaymentSuccessRoute);
 
+    // Collector Onboarding Direct Route Listener (/collector-onboard or #collector-onboard)
+    const checkIsCollectorRoute = () => {
+        if (typeof window === 'undefined') return false;
+        return (
+            window.location.pathname.includes('/collector-onboard') ||
+            window.location.hash === '#collector-onboard' ||
+            window.location.search.includes('collector=true')
+        );
+    };
+
     useEffect(() => {
         const handleUrlChange = () => {
             setIsAdminRoute(checkIsAdminRoute());
             setIsPaymentSuccessRoute(checkIsPaymentSuccessRoute());
+            if (checkIsCollectorRoute()) {
+                setAuthMode('collector-onboard');
+            }
         };
         window.addEventListener('popstate', handleUrlChange);
         window.addEventListener('hashchange', handleUrlChange);
@@ -72,8 +87,14 @@ export default function App() {
     }, []);
 
     // Auth View State: 'login' | 'register' | 'collector-onboard'
-    const [authMode, setAuthMode] = useState('login');
+    const [authMode, setAuthMode] = useState(() => {
+        if (typeof window !== 'undefined' && checkIsCollectorRoute()) {
+            return 'collector-onboard';
+        }
+        return 'login';
+    });
     const [selectedRole, setSelectedRole] = useState('customer'); // 'customer' | 'organization'
+    const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
 
     // Announcement Pop-Up State
     const [showAnnouncement, setShowAnnouncement] = useState(false);
@@ -187,12 +208,32 @@ export default function App() {
             // Register flow
             try {
                 const cleanEmail = enteredUsername.includes('@') ? enteredUsername : `${enteredUsername.toLowerCase().replace(/[^a-z0-9]/g, '')}@kole.ng`;
+                const cleanName = selectedRole === 'organization' ? orgName.trim() : fullName.trim();
+
+                // Household user selecting a non-active cluster: route to waitlist and submit to POST /api/v1/waitlist/
+                if (selectedRole === 'customer' && !useClusterStore.getState().isClusterActive(Area)) {
+                    try {
+                        await waitlist.registerWaitlist({
+                            phone: phoneNumber.trim() || cleanEmail,
+                            area_name: Area || 'Oke-Fia',
+                            full_name: cleanName,
+                            account_type: 'household',
+                            weekly_bags: '2-3 bags',
+                        });
+                    } catch (wErr) {
+                        console.warn('[App Register] Waitlist submission notice:', wErr);
+                    }
+                    setIsLoading(false);
+                    setWaitlistModalOpen(true);
+                    return;
+                }
+
                 const regPayload = {
                     email: cleanEmail,
                     username: enteredUsername || phoneNumber.trim(),
                     password: enteredPassword,
                     phone: phoneNumber.trim(),
-                    full_name: selectedRole === 'organization' ? orgName.trim() : fullName.trim(),
+                    full_name: cleanName,
                     role: selectedRole,
                     area: Area || 'Oke-Fia',
                     address: address.trim(),
@@ -658,6 +699,15 @@ export default function App() {
                                     <div className="space-y-1">
                                         <label className="font-bold text-slate-700 uppercase tracking-wide block">Operating Area Zone</label>
                                         <AreaSelector selectedArea={Area} onAreaChange={(c) => setArea(c)} />
+                                        {selectedRole === 'customer' && !useClusterStore.getState().isClusterActive(Area) && (
+                                            <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] flex items-start gap-2">
+                                                <AlertCircle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <span className="font-bold">Waitlist-Only Area: </span>
+                                                    KóLẹ̀ is expanding to <span className="font-bold">"{Area}"</span>! Submitting will add your household to our expansion waitlist.
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div>
@@ -763,7 +813,9 @@ export default function App() {
                             <Button type="submit" isLoading={isLoading} className="w-full py-3.5 text-sm font-bold mt-2">
                                 {authMode === 'login'
                                     ? `Sign In as ${selectedRole === 'organization' ? 'Organization' : 'Household'}`
-                                    : `Create Account`
+                                    : selectedRole === 'customer' && !useClusterStore.getState().isClusterActive(Area)
+                                        ? `Join ${Area} Waitlist`
+                                        : `Create Account`
                                 }
                             </Button>
                         </form>
@@ -825,6 +877,15 @@ export default function App() {
 
                     </div>
                     </div>
+
+                    {/* Waitlist Modal for Household users in out-of-coverage clusters */}
+                    <WaitlistCaptureModal
+                        isOpen={waitlistModalOpen}
+                        onClose={() => setWaitlistModalOpen(false)}
+                        userAddress={Area}
+                        userName={selectedRole === 'organization' ? orgName : fullName}
+                        userPhone={phoneNumber}
+                    />
                 </div>
             );
         }

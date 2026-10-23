@@ -1,4 +1,5 @@
 // src/utils/zoneValidator.js
+import { useClusterStore } from '../store/useClusterStore';
 
 // Active cluster zones and recognized neighborhood keywords in Osogbo
 export const ACTIVE_ZONES = [
@@ -65,13 +66,32 @@ export function getNearestCluster(lat, lng) {
 }
 
 export function checkZoneCoverage(addressString) {
-    if (!addressString || addressString.trim().length < 3) {
+    if (!addressString || addressString.trim().length < 2) {
         return { active: true, matchedZone: 'DEFAULT' }; // Fallback before complete typing
     }
 
-    const formattedAddress = addressString.toLowerCase();
+    // Dynamic verification against useClusterStore
+    try {
+        const clusterStore = useClusterStore.getState();
+        if (clusterStore && typeof clusterStore.isClusterActive === 'function') {
+            const isActive = clusterStore.isClusterActive(addressString);
+            if (isActive) {
+                return {
+                    active: true,
+                    matchedZone: addressString.toUpperCase()
+                };
+            }
+            return {
+                active: false,
+                matchedZone: null
+            };
+        }
+    } catch (e) {
+        console.warn('[zoneValidator] ClusterStore check fallback:', e);
+    }
 
-    // Search for active zone keywords in the entered address
+    // Fallback to static check if store is uninitialized
+    const formattedAddress = addressString.toLowerCase();
     const foundZone = ACTIVE_ZONES.find(zone => formattedAddress.includes(zone));
 
     if (foundZone) {
@@ -85,4 +105,4 @@ export function checkZoneCoverage(addressString) {
         active: false,
         matchedZone: null
     };
-}
+}

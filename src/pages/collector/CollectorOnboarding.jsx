@@ -1,6 +1,7 @@
 // src/pages/collector/CollectorOnboarding.jsx
 import React, { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useClusterStore } from '../../store/useClusterStore';
 import Button from '../../components/common/Button';
 import AreaSelector from '../../components/common/AreaSelector';
 import koleLogo from '../../assets/Kole.png';
@@ -56,29 +57,43 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
 
-        setTimeout(() => {
-            setIsSubmitting(false);
-            setIsSuccess(true);
-            const userData = {
-                id: `COL-${Math.floor(1000 + Math.random() * 9000)}`,
-                fullName: formData.collectorName.trim() || 'Collector Operator',
-                phoneNumber: formData.phone.trim() || '',
-                Area: formData.Area || 'Oke-Fia',
-                bankName: formData.bankName,
-                accountNumber: formData.accountNumber,
-                accountName: formData.accountName,
-                vehicleCount: formData.vehicleCount,
-                workerCount: formData.workerCount,
-            };
-            useAuthStore.getState().login(userData, 'collector', true);
-            if (onOnboardingComplete) {
-                onOnboardingComplete(userData);
-            }
-        }, 800);
+        const assignedCluster = formData.Area
+            ? (formData.Area.toLowerCase().endsWith('zone') ? formData.Area : `${formData.Area} Zone`)
+            : 'Oke-Fia Zone';
+
+        const collectorPayload = {
+            id: `COL-${Math.floor(1000 + Math.random() * 9000)}`,
+            companyName: formData.collectorName.trim() || 'Collector Operator',
+            collectorName: formData.collectorName.trim() || 'Collector Operator',
+            fullName: formData.collectorName.trim() || 'Collector Operator',
+            phoneNumber: formData.phone.trim() || '',
+            phone: formData.phone.trim() || '',
+            Area: formData.Area || 'Oke-Fia',
+            cluster: assignedCluster,
+            fleetCount: Number(formData.vehicleCount || 1),
+            vehicleCount: Number(formData.vehicleCount || 1),
+            workerCount: Number(formData.workerCount || 2),
+            bankName: formData.bankName,
+            accountNumber: formData.accountNumber.trim(),
+            accountName: formData.accountName.trim(),
+        };
+
+        // 1. Save profile payload & activate coverage cluster in useClusterStore
+        await useClusterStore.getState().registerCollector(collectorPayload);
+
+        // 2. Log in operator session
+        useAuthStore.getState().login(collectorPayload, 'collector', true);
+
+        setIsSubmitting(false);
+        setIsSuccess(true);
+
+        if (onOnboardingComplete) {
+            onOnboardingComplete(collectorPayload);
+        }
     };
 
     // 1. PARTNER ACCESS KEY GATE (UNLOCKED VERIFICATION STEP)
@@ -341,7 +356,7 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
                     </div>
 
                     <Button type="submit" isLoading={isSubmitting} className="w-full py-3.5 font-bold text-sm">
-                        Save Collector Profile & Enable Automated Split Payouts
+                        Register Operator & Activate Coverage Zone
                     </Button>
 
                 </form>

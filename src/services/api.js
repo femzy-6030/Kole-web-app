@@ -251,6 +251,22 @@ export const pickups = {
     },
 };
 
+export const collectors = {
+    /**
+     * Register collector operator profile via POST /collectors/ or /collector/register/
+     * @param {Object} data - Collector payload
+     */
+    register: async (data) => {
+        try {
+            const response = await api.post('collectors/', data);
+            return response.data;
+        } catch (err) {
+            console.warn('[Collector API] Backend registration fallback to local state:', err?.message || err);
+            return { success: true, localOnly: true, data };
+        }
+    },
+};
+
 export const waitlist = {
     /**
      * Register a user / address on neighborhood expansion waitlist via POST /waitlist/

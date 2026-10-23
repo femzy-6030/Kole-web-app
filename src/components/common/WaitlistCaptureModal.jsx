@@ -4,16 +4,26 @@ import Button from './Button';
 import { waitlist } from '../../services/api';
 import { MapPin, MessageSquare, CheckCircle2, X } from 'lucide-react';
 
-export default function WaitlistCaptureModal({ isOpen, onClose, userAddress }) {
+export default function WaitlistCaptureModal({ isOpen, onClose, userAddress, userName = '', userPhone = '' }) {
     const [submitted, setSubmitted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
-        name: '',
-        phone: '',
+        name: userName || '',
+        phone: userPhone || '',
         accountType: 'household', // household vs commercial
         weeklyBags: '2-3 bags',
         currentDisposal: 'Municipal / Burning'
     });
+
+    React.useEffect(() => {
+        if (isOpen) {
+            setFormData(prev => ({
+                ...prev,
+                name: prev.name || userName || '',
+                phone: prev.phone || userPhone || '',
+            }));
+        }
+    }, [isOpen, userName, userPhone]);
 
     if (!isOpen) return null;
 
@@ -61,10 +71,10 @@ export default function WaitlistCaptureModal({ isOpen, onClose, userAddress }) {
                                 Expansion Zone Notice
                             </span>
                             <h3 className="text-base font-black text-slate-800 mt-2">
-                                We're not quite in your specific area yet!
+                                KóLẹ̀ is expanding to your area! Join waitlist
                             </h3>
                             <p className="text-slate-500 text-[11px] mt-1">
-                                You entered: <span className="font-bold text-slate-700">"{userAddress}"</span>. Help us prioritize our next cluster expansion in Osogbo.
+                                Coverage for <span className="font-bold text-slate-700">"{userAddress}"</span> is coming soon. Join our priority neighborhood waitlist to get early access and dispatch notifications.
                             </p>
                         </div>
 
