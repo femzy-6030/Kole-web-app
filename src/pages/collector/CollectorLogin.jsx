@@ -7,9 +7,6 @@ import Logo from '../../components/common/Logo';
 import {
     Truck,
     Phone,
-    Lock,
-    Eye,
-    EyeOff,
     ShieldCheck,
     AlertCircle,
     ArrowLeft,
@@ -23,8 +20,6 @@ export default function CollectorLogin({ onLoginSuccess, onNavigateToOnboarding,
     const { registeredCollectors } = useClusterStore();
 
     const [dispatchPhone, setDispatchPhone] = useState('08012345678');
-    const [password, setPassword] = useState('KOLE2026');
-    const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
@@ -79,7 +74,6 @@ export default function CollectorLogin({ onLoginSuccess, onNavigateToOnboarding,
 
     const handleDemoQuickLogin = () => {
         setDispatchPhone('08012345678');
-        setPassword('KOLE2026');
         handleAuthenticate();
     };
 
@@ -176,35 +170,7 @@ export default function CollectorLogin({ onLoginSuccess, onNavigateToOnboarding,
                         </div>
                     </div>
 
-                    <div>
-                        <label className="font-bold text-slate-300 uppercase tracking-wider text-[10px] block mb-1.5">
-                            Operator PIN / Access Code
-                        </label>
-                        <div className="relative">
-                            <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-500" />
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                placeholder="Enter account PIN or password"
-                                value={password}
-                                onChange={(e) => {
-                                    setPassword(e.target.value);
-                                    setErrorMsg('');
-                                }}
-                                required
-                                className="w-full pl-10 pr-11 py-3 bg-slate-950/80 border border-slate-700/80 rounded-2xl font-bold text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3.5 top-3.5 text-slate-500 hover:text-slate-300 focus:outline-none cursor-pointer"
-                                tabIndex="-1"
-                            >
-                                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between my-3 text-sm">
+                    <div className="flex items-center my-3 text-sm">
                         <label className="flex items-center text-slate-300 hover:text-white cursor-pointer select-none">
                             <input 
                                 type="checkbox" 
@@ -214,16 +180,6 @@ export default function CollectorLogin({ onLoginSuccess, onNavigateToOnboarding,
                             />
                             Remember me
                         </label>
-                        <a 
-                            href="#forgot-pin" 
-                            onClick={(e) => {
-                                e.preventDefault();
-                                setErrorMsg('To reset your operator PIN, please contact Osogbo Dispatch Control Coordinator via 08012345678.');
-                            }}
-                            className="text-emerald-400 hover:underline font-medium text-xs sm:text-sm"
-                        >
-                            Forgot PIN?
-                        </a>
                     </div>
 
                     <Button

@@ -24,7 +24,6 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
     const [accessCode, setAccessCode] = useState('');
     const [isUnlocked, setIsUnlocked] = useState(false);
     const [codeError, setCodeError] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
     const [showAccessCode, setShowAccessCode] = useState(false);
 
     // Form State
@@ -37,7 +36,6 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
         bankName: 'First Bank of Nigeria',
         accountNumber: '',
         accountName: '',
-        password: '',
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -231,30 +229,6 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
                                     onChange={(e) => handleChange('phone', e.target.value)}
                                     className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
                                 />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="font-bold text-slate-700 block mb-1">Operator Account Password / PIN</label>
-                            <div className="relative">
-                                <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="Set account password"
-                                    required
-                                    value={formData.password}
-                                    onChange={(e) => handleChange('password', e.target.value)}
-                                    className="w-full pl-10 pr-11 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
-                                    tabIndex="-1"
-                                    aria-label={showPassword ? "Hide password" : "Show password"}
-                                >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
                             </div>
                         </div>
 
