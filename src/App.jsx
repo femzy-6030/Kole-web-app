@@ -10,6 +10,8 @@ import OrganizationHome from './pages/organization/OrganizationHome';
 import OrganizationProfileView from './components/organization/OrganizationProfileView';
 import CollectorOnboarding from './pages/collector/CollectorOnboarding';
 import CollectorDispatchQueue from './components/collector/CollectorDispatchQueue';
+import CollectorPortal from './pages/collector/CollectorPortal';
+import CollectorLogin from './pages/collector/CollectorLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AreaSelector from "./components/common/AreaSelector";
 import { AnnouncementModal } from './components/common/AwarenessCarousel';
@@ -60,22 +62,46 @@ export default function App() {
     };
     const [isPaymentSuccessRoute, setIsPaymentSuccessRoute] = useState(checkIsPaymentSuccessRoute);
 
-    // Collector Onboarding Direct Route Listener (/collector-onboard or #collector-onboard)
+    // Dedicated Collector Route Listener (/collector, /collector/login, /collector/dashboard, /collector-onboard, etc.)
     const checkIsCollectorRoute = () => {
         if (typeof window === 'undefined') return false;
+        const path = window.location.pathname.toLowerCase();
+        const hash = window.location.hash.toLowerCase();
+        const search = window.location.search.toLowerCase();
         return (
-            window.location.pathname.includes('/collector-onboard') ||
-            window.location.hash === '#collector-onboard' ||
-            window.location.search.includes('collector=true')
+            path.startsWith('/collector') ||
+            hash.startsWith('#collector') ||
+            search.includes('collector=true')
         );
     };
+
+    const checkIsCollectorOnboardRoute = () => {
+        if (typeof window === 'undefined') return false;
+        const path = window.location.pathname.toLowerCase();
+        const hash = window.location.hash.toLowerCase();
+        return path.includes('/collector-onboard') || hash.includes('#collector-onboard');
+    };
+
+    const [isCollectorRoute, setIsCollectorRoute] = useState(checkIsCollectorRoute);
+
+    // Auth View State: 'login' | 'register' | 'collector-onboard'
+    const [authMode, setAuthMode] = useState(() => {
+        if (typeof window !== 'undefined' && checkIsCollectorOnboardRoute()) {
+            return 'collector-onboard';
+        }
+        return 'login';
+    });
 
     useEffect(() => {
         const handleUrlChange = () => {
             setIsAdminRoute(checkIsAdminRoute());
             setIsPaymentSuccessRoute(checkIsPaymentSuccessRoute());
-            if (checkIsCollectorRoute()) {
+            const isCol = checkIsCollectorRoute();
+            setIsCollectorRoute(isCol);
+            if (checkIsCollectorOnboardRoute()) {
                 setAuthMode('collector-onboard');
+            } else if (isCol && authMode === 'collector-onboard' && !window.location.pathname.includes('/collector-onboard')) {
+                setAuthMode('login');
             }
         };
         window.addEventListener('popstate', handleUrlChange);
@@ -84,15 +110,7 @@ export default function App() {
             window.removeEventListener('popstate', handleUrlChange);
             window.removeEventListener('hashchange', handleUrlChange);
         };
-    }, []);
-
-    // Auth View State: 'login' | 'register' | 'collector-onboard'
-    const [authMode, setAuthMode] = useState(() => {
-        if (typeof window !== 'undefined' && checkIsCollectorRoute()) {
-            return 'collector-onboard';
-        }
-        return 'login';
-    });
+    }, [authMode]);
     const [selectedRole, setSelectedRole] = useState('customer'); // 'customer' | 'organization'
     const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
 
@@ -372,7 +390,31 @@ export default function App() {
             );
         }
 
-        // 1. DIRECT COLLECTOR ONBOARDING VIEW
+        // 1. DEDICATED COLLECTOR LOGIN VIEW (Isolated at /collector or /collector/login)
+        if (!isAuthenticated && isCollectorRoute && authMode !== 'collector-onboard') {
+            return (
+                <CollectorLogin
+                    onLoginSuccess={() => {
+                        setAuthMode('login');
+                    }}
+                    onNavigateToOnboarding={() => {
+                        setAuthMode('collector-onboard');
+                        if (typeof window !== 'undefined') {
+                            window.history.pushState({}, '', '/collector-onboard');
+                        }
+                    }}
+                    onBackToResident={() => {
+                        setIsCollectorRoute(false);
+                        setAuthMode('login');
+                        if (typeof window !== 'undefined') {
+                            window.history.pushState({}, '', '/');
+                        }
+                    }}
+                />
+            );
+        }
+
+        // 1B. DIRECT COLLECTOR ONBOARDING VIEW
         if (authMode === 'collector-onboard') {
             return (
                 <div className="flex-1 flex flex-col">
@@ -381,10 +423,15 @@ export default function App() {
                             <Truck size={14} className="text-brand-primary" /> Collector Portal Mode
                         </span>
                         <button
-                            onClick={() => setAuthMode('login')}
+                            onClick={() => {
+                                setAuthMode('login');
+                                if (typeof window !== 'undefined') {
+                                    window.history.pushState({}, '', '/collector');
+                                }
+                            }}
                             className="text-slate-300 hover:text-white font-bold underline cursor-pointer"
                         >
-                            ← Back to Login
+                            ← Back to Collector Login
                         </button>
                     </div>
 
@@ -403,6 +450,9 @@ export default function App() {
                             };
                             login(userData, 'collector', true);
                             setAuthMode('login');
+                            if (typeof window !== 'undefined') {
+                                window.history.pushState({}, '', '/collector/dashboard');
+                            }
                         }}
                     />
                 </div>
@@ -861,18 +911,6 @@ export default function App() {
                                     </>
                                 )}
                             </div>
-
-                            {/* HIDDEN / DISCRETE ACCESS LINK FOR COLLECTOR PARTNERS */}
-                            <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400">
-                                Waste Operator Partner?{' '}
-                                <button
-                                    type="button"
-                                    onClick={() => setAuthMode('collector-onboard')}
-                                    className="text-brand-primary font-bold hover:underline cursor-pointer"
-                                >
-                                    Register Fleet & Settlement Bank
-                                </button>
-                            </div>
                         </div>
 
                     </div>
@@ -949,26 +987,9 @@ export default function App() {
             );
         }
 
-        // 6. COLLECTOR ROLE
+        // 6. COLLECTOR ROLE - FULL MULTI-PAGE DISPATCH OPERATIONS PORTAL
         if (role === 'collector') {
-            return (
-                <div className="flex-1 bg-slate-100 p-4">
-                    {/* Top Header Bar with Logout option */}
-                    <div className="w-full mb-4 flex justify-between items-center bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200">
-                        <span className="font-black text-slate-800 text-xs flex items-center gap-1.5">
-                            <Truck size={16} className="text-brand-primary" /> Collector Fleet Portal
-                        </span>
-                        <button
-                            onClick={() => useAuthStore.getState().logout()}
-                            className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
-                        >
-                            Sign Out
-                        </button>
-                    </div>
-
-                    <CollectorDispatchQueue />
-                </div>
-            );
+            return <CollectorPortal />;
         }
 
         // 7. CUSTOMER ROLE
@@ -1005,6 +1026,15 @@ export default function App() {
             </div>
         );
     };
+
+    // Render full-width layout for Collector Portal & Collector Login (bypassing phone mockup container)
+    if (role === 'collector' || (isCollectorRoute && authMode !== 'collector-onboard')) {
+        return (
+            <div className="min-h-screen bg-slate-950 flex flex-col w-full">
+                {renderView()}
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-100 md:bg-slate-200/70 flex justify-center items-start md:py-8 md:px-4">

@@ -37,11 +37,35 @@ const DEFAULT_COLLECTORS = [
     },
 ];
 
+const DEFAULT_ASSISTANCE_TICKETS = [
+    {
+        id: 'AST-7821',
+        category: 'Vehicle Breakdown',
+        title: 'Compactor Hydraulic Pressure Loss',
+        cluster: 'Oke-Fia Zone',
+        priority: 'HIGH',
+        status: 'In Progress',
+        notes: 'Mobile mechanical technician dispatched to Oke-Fia roundabout.',
+        createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    },
+    {
+        id: 'AST-7814',
+        category: 'Road Inaccessible',
+        title: 'Downed Wire on Station Road Service Lane',
+        cluster: 'Station Road Zone',
+        priority: 'MEDIUM',
+        status: 'Resolved',
+        notes: 'Cleared with Osogbo Municipal Works. Route restored.',
+        createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+    },
+];
+
 export const useClusterStore = create(
     persist(
         (set, get) => ({
             activeClusters: DEFAULT_ACTIVE_CLUSTERS,
             registeredCollectors: DEFAULT_COLLECTORS,
+            assistanceTickets: DEFAULT_ASSISTANCE_TICKETS,
 
             /**
              * Check if a given zone or address is within the actively serviced clusters
@@ -87,8 +111,31 @@ export const useClusterStore = create(
             },
 
             /**
+             * Toggle a cluster active/inactive
+             */
+            toggleClusterStatus: (clusterName) => {
+                if (!clusterName) return;
+                const trimmed = clusterName.trim();
+                const clean = normalizeCluster(trimmed);
+
+                set((state) => {
+                    const current = state.activeClusters || [];
+                    const isActive = current.some((c) => normalizeCluster(c) === clean);
+
+                    if (isActive) {
+                        // Deactivate (remove)
+                        const filtered = current.filter((c) => normalizeCluster(c) !== clean);
+                        return { activeClusters: filtered.length > 0 ? filtered : ['Oke-Fia Zone'] };
+                    } else {
+                        // Activate (add)
+                        const zoneFormatted = trimmed.toLowerCase().endsWith('zone') ? trimmed : `${trimmed} Zone`;
+                        return { activeClusters: [...current, trimmed, zoneFormatted] };
+                    }
+                });
+            },
+
+            /**
              * Register an operator payload and dynamically activate coverage for their cluster
-             * Saves Company Name, Phone, Fleet Count, Bank Name, NUBAN Account Number
              */
             registerCollector: async (collectorPayload) => {
                 const area = collectorPayload.Area || collectorPayload.cluster || 'Oke-Fia';
@@ -141,19 +188,52 @@ export const useClusterStore = create(
             },
 
             /**
+             * Update existing collector profile
+             */
+            updateCollectorProfile: (updatedFields) => {
+                set((state) => {
+                    const collectorsList = state.registeredCollectors || [];
+                    const updated = collectorsList.map((col, idx) => {
+                        if (idx === 0 || col.id === updatedFields.id) {
+                            return { ...col, ...updatedFields };
+                        }
+                        return col;
+                    });
+                    return { registeredCollectors: updated };
+                });
+            },
+
+            /**
+             * Add assistance ticket
+             */
+            addAssistanceTicket: (ticket) => {
+                const newTicket = {
+                    id: `AST-${Math.floor(1000 + Math.random() * 9000)}`,
+                    status: 'Under Review',
+                    createdAt: new Date().toISOString(),
+                    ...ticket,
+                };
+                set((state) => ({
+                    assistanceTickets: [newTicket, ...(state.assistanceTickets || [])],
+                }));
+                return newTicket;
+            },
+
+            /**
              * Reset clusters back to default initial state
              */
             resetClusters: () => {
                 set({
                     activeClusters: DEFAULT_ACTIVE_CLUSTERS,
                     registeredCollectors: DEFAULT_COLLECTORS,
+                    assistanceTickets: DEFAULT_ASSISTANCE_TICKETS,
                 });
             },
         }),
         {
             name: 'kole-clusters-storage',
             storage: createJSONStorage(() => localStorage),
-            version: 1,
+            version: 2,
         }
     )
 );
