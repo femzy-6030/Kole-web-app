@@ -25,6 +25,7 @@ export default function CollectorLogin({ onLoginSuccess, onNavigateToOnboarding,
     const [dispatchPhone, setDispatchPhone] = useState('08012345678');
     const [password, setPassword] = useState('KOLE2026');
     const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
 
@@ -63,8 +64,8 @@ export default function CollectorLogin({ onLoginSuccess, onNavigateToOnboarding,
                 accountName: 'Osogbo Central Cleaners Ltd',
             };
 
-            // Login into auth store with 'collector' role
-            login(collectorData, 'collector', true);
+            // Login into auth store with 'collector' role and session persistence flag
+            login(collectorData, 'collector', rememberMe);
             setIsLoading(false);
 
             if (onLoginSuccess) {
@@ -201,6 +202,28 @@ export default function CollectorLogin({ onLoginSuccess, onNavigateToOnboarding,
                                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
                         </div>
+                    </div>
+
+                    <div className="flex items-center justify-between my-3 text-sm">
+                        <label className="flex items-center text-slate-300 hover:text-white cursor-pointer select-none">
+                            <input 
+                                type="checkbox" 
+                                checked={rememberMe} 
+                                onChange={(e) => setRememberMe(e.target.checked)} 
+                                className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 mr-2 accent-emerald-600 cursor-pointer"
+                            />
+                            Remember me
+                        </label>
+                        <a 
+                            href="#forgot-pin" 
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setErrorMsg('To reset your operator PIN, please contact Osogbo Dispatch Control Coordinator via 08012345678.');
+                            }}
+                            className="text-emerald-400 hover:underline font-medium text-xs sm:text-sm"
+                        >
+                            Forgot PIN?
+                        </a>
                     </div>
 
                     <Button
