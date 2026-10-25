@@ -35,7 +35,7 @@ export default function CollectorRequestsView() {
     const [previewPhotoUrl, setPreviewPhotoUrl] = useState(null);
     const [bidModalTicket, setBidModalTicket] = useState(null);
     const [bidForm, setBidForm] = useState({
-        quoteAmount: '2500',
+        quoteAmount: '2100',
         etaMinutes: '15',
         unitAssigned: 'Compactor Unit #1',
     });
@@ -65,8 +65,8 @@ export default function CollectorRequestsView() {
             title: 'Weekly Scheduled Evacuation',
             planKey: 'weekly',
             priority: 'SCHEDULED',
-            amount: '₦2,500',
-            numericAmount: 2500,
+            amount: '₦2,100',
+            numericAmount: 2100,
             customerName: 'Aisha Adeleke',
             phone: '08123456789',
             location: {
@@ -83,8 +83,8 @@ export default function CollectorRequestsView() {
             title: 'Household Monthly Pass Collection',
             planKey: 'monthly',
             priority: 'SCHEDULED',
-            amount: '₦10,000',
-            numericAmount: 10000,
+            amount: '₦8,400',
+            numericAmount: 8400,
             customerName: 'Engr. Babatunde Gbadamosi',
             phone: '08098765432',
             location: {
@@ -129,7 +129,7 @@ export default function CollectorRequestsView() {
     const handleOpenBidModal = (ticket) => {
         setBidModalTicket(ticket);
         setBidForm({
-            quoteAmount: ticket.numericAmount ? String(ticket.numericAmount) : '2500',
+            quoteAmount: ticket.numericAmount ? String(ticket.numericAmount) : '2100',
             etaMinutes: '15',
             unitAssigned: 'Compactor Unit #1',
         });

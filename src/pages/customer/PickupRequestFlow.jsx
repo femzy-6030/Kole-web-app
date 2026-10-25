@@ -40,19 +40,19 @@ export default function PickupRequestFlow({ initialPlan = 'one-time', onProceedT
         'weekly': {
             id: 'weekly',
             title: 'Weekly Household Pass',
-            price: '₦4,500 / mo',
-            numericPrice: 4500,
+            price: '₦2,100 / wk',
+            numericPrice: 2100,
             desc: '2 scheduled waste clearances per week',
-            quota: '8 Pickups / Month',
+            quota: 'Weekly Renewal',
             priority: 'STANDARD_SCHEDULED'
         },
         'monthly': {
             id: 'monthly',
-            title: 'Monthly Unlimited Pass',
-            price: '₦8,000 / mo',
-            numericPrice: 8000,
-            desc: 'Unlimited waste clearance on demand all month',
-            quota: 'Unlimited Pickups',
+            title: 'Household Monthly Plan',
+            price: '₦8,400 / mo',
+            numericPrice: 8400,
+            desc: 'Continuous waste clearance on demand all month (4 weeks)',
+            quota: 'Continuous Month Pass',
             priority: 'VIP_UNLIMITED'
         }
     };

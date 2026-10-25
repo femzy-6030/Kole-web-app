@@ -40,13 +40,13 @@ export default function CustomerHome({ onNavigateToCheckout }) {
         },
         'weekly': {
             title: 'Weekly Pass',
-            price: '₦2,500 / wk',
+            price: '₦2,100 / wk',
             desc: 'Includes ₦500 fee, renewable weekly'
         },
         'monthly': {
             title: 'Household Monthly Plan',
-            price: 'From ₦10,000 / mo',
-            desc: '₦2,500/wk × 4 weeks with volume upgrades'
+            price: 'From ₦8,400 / mo',
+            desc: '₦2,100/wk × 4 weeks with volume upgrades'
         },
     };
 

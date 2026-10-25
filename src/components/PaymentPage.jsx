@@ -26,7 +26,7 @@ import {
 // CONFIGURABLE PRICING CONFIGURATION
 // ==========================================
 const DEFAULT_PAYMENT_CONFIG = {
-    baseWeeklyRate: 2500, // Includes ₦500 service fee (Base ₦2,000 + ₦500 fee)
+    baseWeeklyRate: 2100, // Includes ₦500 service fee (Base ₦1,600 + ₦500 fee)
     weeklyServiceFee: 500,
     stepIncrement: 1000,
     maxWeeklyTier: 7500, // Up to ₦7,500/wk cap
@@ -74,7 +74,7 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
     // 2. Generate Dynamic Volume Tiers up to maxWeeklyTier (₦7,500 per week cap)
     const volumeTiers = useMemo(() => {
         const tiers = [];
-        const baseWeekly = pricingConfig.baseWeeklyRate; // 2500
+        const baseWeekly = pricingConfig.baseWeeklyRate; // 2100
         const maxWeekly = pricingConfig.maxWeeklyTier; // 7500
         const step = pricingConfig.stepIncrement; // 1000
         const weeks = pricingConfig.weeksPerMonth; // 4
@@ -107,10 +107,10 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
     }, [pricingConfig]);
 
     // 3. Mathematical Breakdown (Dynamic Mode Switching: Weekly vs Monthly)
-    const baseWeeklyRate = pricingConfig.baseWeeklyRate; // ₦2,500
+    const baseWeeklyRate = pricingConfig.baseWeeklyRate; // ₦2,100
     const weeklyServiceFee = pricingConfig.weeklyServiceFee; // ₦500
-    const weeklyBaseSubtotal = Math.max(0, baseWeeklyRate - weeklyServiceFee); // ₦2,000
-    const selectedWeeklyTotal = baseWeeklyRate + selectedVolumeAddon; // e.g. ₦2,500, ₦3,500 ... up to ₦7,500
+    const weeklyBaseSubtotal = Math.max(0, baseWeeklyRate - weeklyServiceFee); // ₦1,600
+    const selectedWeeklyTotal = baseWeeklyRate + selectedVolumeAddon; // e.g. ₦2,100, ₦3,100 ... up to ₦7,100
 
     const isMonthly = billingCycle === 'monthly';
     const weeksCount = isMonthly ? pricingConfig.weeksPerMonth : 1; // 4 weeks for monthly, 1 week for weekly pass

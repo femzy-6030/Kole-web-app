@@ -56,7 +56,7 @@ export default function PaymentSuccess({ onBackToDashboard }) {
 
                 const isWeekly = (cached?.billingCycle === 'weekly') || (verifyRes?.data?.plan_type === 'weekly');
                 const planTitle = isWeekly ? 'Weekly Pass' : 'Household Monthly Plan';
-                const amountVal = cached?.amount || (verifyRes?.data?.amount ? verifyRes.data.amount / 100 : (isWeekly ? 2500 : 10000));
+                const amountVal = cached?.amount || (verifyRes?.data?.amount ? verifyRes.data.amount / 100 : (isWeekly ? 2100 : 8400));
                 const formattedAmount = `₦${Number(amountVal).toLocaleString()}`;
                 const area = cached?.area || user?.Area || user?.area || 'Oke-Fia';
 
