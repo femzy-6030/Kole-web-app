@@ -17,8 +17,17 @@ import {
     Eye,
     EyeOff,
     CheckCircle2,
-    MessageSquare
+    MessageSquare,
+    Briefcase
 } from 'lucide-react';
+
+const ORGANIZATION_CATEGORIES = [
+    'Schools & Educational',
+    'Restaurants & Food Service',
+    'Corporate Office / Tech Hub',
+    'Retail / Plaza',
+    'Healthcare / Medical'
+];
 
 export default function Register({ onSwitchToLogin }) {
     const { login } = useAuthStore();
@@ -27,6 +36,7 @@ export default function Register({ onSwitchToLogin }) {
     const [role, setRole] = useState('customer'); // 'customer' (Household) | 'organization'
     const [fullName, setFullName] = useState('');
     const [orgName, setOrgName] = useState('');
+    const [orgCategory, setOrgCategory] = useState('Corporate Office / Tech Hub');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -50,6 +60,12 @@ export default function Register({ onSwitchToLogin }) {
         if (!cleanEmail || !cleanName) {
             setIsLoading(false);
             setAuthError('Please fill in all required registration fields.');
+            return;
+        }
+
+        if (role === 'organization' && !orgCategory) {
+            setIsLoading(false);
+            setAuthError('Please select a mandatory organization category.');
             return;
         }
 
@@ -87,6 +103,7 @@ export default function Register({ onSwitchToLogin }) {
                 password: password,
                 address: address.trim(),
                 Area: area || 'Oke-Fia',
+                ...(role === 'organization' ? { category: orgCategory, organization_category: orgCategory, org_name: cleanName } : {}),
             };
 
             const data = await auth.register(payload);
@@ -97,12 +114,14 @@ export default function Register({ onSwitchToLogin }) {
             const userData = {
                 id: data?.user?.id || `USR-${Math.floor(1000 + Math.random() * 9000)}`,
                 fullName: cleanName,
+                orgName: role === 'organization' ? cleanName : undefined,
                 email: cleanEmail,
                 username: cleanEmail,
                 phoneNumber: phoneNumber.trim(),
                 Area: area || 'Oke-Fia',
                 address: address.trim(),
                 role: role === 'organization' ? 'organization' : 'customer',
+                ...(role === 'organization' ? { category: orgCategory, organizationCategory: orgCategory } : {}),
                 total_pickups: 0,
                 impact_score: 0,
             };
@@ -275,20 +294,44 @@ export default function Register({ onSwitchToLogin }) {
                             </div>
                         </div>
                     ) : (
-                        <div>
-                            <label className="font-bold text-slate-700 uppercase tracking-wide mb-1 block">Organization Name</label>
-                            <div className="relative">
-                                <Building2 size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Oroki Innovation Hub"
-                                    value={orgName}
-                                    onChange={(e) => setOrgName(e.target.value)}
-                                    required
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
-                                />
+                        <>
+                            <div>
+                                <label className="font-bold text-slate-700 uppercase tracking-wide mb-1 block">Organization Name</label>
+                                <div className="relative">
+                                    <Building2 size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Oroki Innovation Hub"
+                                        value={orgName}
+                                        onChange={(e) => setOrgName(e.target.value)}
+                                        required
+                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
+                                    />
+                                </div>
                             </div>
-                        </div>
+
+                            <div>
+                                <label htmlFor="register-org-category" className="font-bold text-slate-700 uppercase tracking-wide mb-1 block">
+                                    Organization Category <span className="text-rose-500">*</span>
+                                </label>
+                                <div className="relative">
+                                    <Briefcase size={18} className="absolute left-3.5 top-3.5 text-brand-primary" />
+                                    <select
+                                        id="register-org-category"
+                                        value={orgCategory}
+                                        onChange={(e) => setOrgCategory(e.target.value)}
+                                        required
+                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary appearance-none cursor-pointer"
+                                    >
+                                        {ORGANIZATION_CATEGORIES.map((cat) => (
+                                            <option key={cat} value={cat}>
+                                                {cat}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </>
                     )}
 
                     <div>

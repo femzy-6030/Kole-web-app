@@ -7,6 +7,7 @@ import PaymentCheckoutView from './components/customer/PaymentCheckoutView';
 import ProfileView from './components/customer/ProfileView';
 import CustomerNavbar from './components/layout/CustomerNavbar';
 import OrganizationHome from './pages/organization/OrganizationHome';
+import OrganizationDashboard, { CATEGORY_TIER_CONFIG } from './pages/OrganizationDashboard';
 import OrganizationProfileView from './components/organization/OrganizationProfileView';
 import CollectorOnboarding from './pages/collector/CollectorOnboarding';
 import CollectorDispatchQueue from './components/collector/CollectorDispatchQueue';
@@ -137,6 +138,7 @@ export default function App() {
     const [address, setAddress] = useState('');
     const [Area, setArea] = useState('Oke-Fia');
     const [orgName, setOrgName] = useState('');
+    const [orgCategory, setOrgCategory] = useState('Corporate Office / Tech Hub');
     const [officerName, setOfficerName] = useState('');
     const [pickupBay, setPickupBay] = useState('');
 
@@ -255,6 +257,7 @@ export default function App() {
                     role: selectedRole,
                     area: Area || 'Oke-Fia',
                     address: address.trim(),
+                    ...(selectedRole === 'organization' ? { category: orgCategory, organization_category: orgCategory, org_name: orgName } : {}),
                 };
 
                 await auth.register(regPayload);
@@ -271,6 +274,10 @@ export default function App() {
                 const userData = {
                     id: data?.user?.id || `USR-${Math.floor(1000 + Math.random() * 9000)}`,
                     fullName: selectedRole === 'organization' ? orgName : fullName,
+                    orgName: selectedRole === 'organization' ? orgName : undefined,
+                    officerInCharge: selectedRole === 'organization' ? (officerName || 'Facilities Lead') : undefined,
+                    category: selectedRole === 'organization' ? orgCategory : undefined,
+                    organizationCategory: selectedRole === 'organization' ? orgCategory : undefined,
                     email: cleanEmail,
                     username: regPayload.username,
                     phoneNumber: phoneNumber.trim(),
@@ -743,6 +750,25 @@ export default function App() {
                                                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
                                                 />
                                             </div>
+
+                                            <div>
+                                                <label htmlFor="app-org-category" className="font-bold text-slate-700 uppercase tracking-wide mb-1 block">
+                                                    Organization Category <span className="text-rose-500">*</span>
+                                                </label>
+                                                <select
+                                                    id="app-org-category"
+                                                    value={orgCategory}
+                                                    onChange={(e) => setOrgCategory(e.target.value)}
+                                                    required
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary appearance-none cursor-pointer"
+                                                >
+                                                    <option value="Schools & Educational">Schools & Educational</option>
+                                                    <option value="Restaurants & Food Service">Restaurants & Food Service</option>
+                                                    <option value="Corporate Office / Tech Hub">Corporate Office / Tech Hub</option>
+                                                    <option value="Retail / Plaza">Retail / Plaza</option>
+                                                    <option value="Healthcare / Medical">Healthcare / Medical</option>
+                                                </select>
+                                            </div>
                                         </>
                                     )}
 
@@ -981,7 +1007,7 @@ export default function App() {
                             <OrganizationProfileView />
                         </div>
                     ) : (
-                        <OrganizationHome onOpenSettings={() => setShowOrgSettings(true)} />
+                        <OrganizationDashboard onOpenSettings={() => setShowOrgSettings(true)} />
                     )}
                 </div>
             );

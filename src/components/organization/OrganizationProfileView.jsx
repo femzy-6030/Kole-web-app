@@ -18,16 +18,16 @@ import {
 } from 'lucide-react';
 
 export default function OrganizationProfileView() {
-    const { user, logout } = useAuthStore();
+    const { user, logout, updateUserProfile } = useAuthStore();
 
     const [orgData, setOrgData] = useState({
-        orgName: user?.fullName || 'Oroki Innovation Hub',
-        category: 'Commercial / Tech Hub',
-        Area: user?.Area || 'Oke-Fia',
-        address: 'Plot 4, Station Road, Opp. Union Bank, Oke-Fia, Osogbo',
-        pickupBay: 'Rear Loading Dock near Generator House',
-        managerName: 'Mr. Lukman Adeoti',
-        managerPhone: '08034567891',
+        orgName: user?.orgName || user?.fullName || 'Oroki Innovation Hub',
+        category: user?.category || user?.organizationCategory || 'Corporate Office / Tech Hub',
+        Area: user?.Area || user?.area || 'Oke-Fia',
+        address: user?.address || 'Plot 4, Station Road, Opp. Union Bank, Oke-Fia, Osogbo',
+        pickupBay: user?.pickupBay || 'Rear Loading Dock near Generator House',
+        managerName: user?.officerInCharge || 'Mr. Lukman Adeoti',
+        managerPhone: user?.phoneNumber || '08034567891',
         preferredHours: '08:00 AM - 11:00 AM',
         wasteType: 'Paper, E-Waste & General Packaging',
         estimatedVolume: '10–15 Large Bags / Week',
@@ -37,6 +37,20 @@ export default function OrganizationProfileView() {
 
     const handleSave = (e) => {
         e.preventDefault();
+        if (updateUserProfile) {
+            updateUserProfile({
+                orgName: orgData.orgName,
+                fullName: orgData.orgName,
+                category: orgData.category,
+                organizationCategory: orgData.category,
+                Area: orgData.Area,
+                area: orgData.Area,
+                address: orgData.address,
+                pickupBay: orgData.pickupBay,
+                officerInCharge: orgData.managerName,
+                phoneNumber: orgData.managerPhone,
+            });
+        }
         setIsSaved(true);
         setTimeout(() => setIsSaved(false), 3000);
     };
@@ -86,12 +100,11 @@ export default function OrganizationProfileView() {
                             onChange={(e) => setOrgData({ ...orgData, category: e.target.value })}
                             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
                         >
-                            <option value="Commercial / Tech Hub">Commercial / Tech Hub</option>
-                            <option value="Hospital / Healthcare Clinic">Hospital / Healthcare Clinic</option>
-                            <option value="Hotel / Restaurant / Eatery">Hotel / Restaurant / Eatery</option>
-                            <option value="Educational Institution / School">Educational Institution / School</option>
-                            <option value="Supermarket / Retail Store">Supermarket / Retail Store</option>
-                            <option value="Factory / Light Industry">Factory / Light Industry</option>
+                            <option value="Schools & Educational">Schools & Educational</option>
+                            <option value="Restaurants & Food Service">Restaurants & Food Service</option>
+                            <option value="Corporate Office / Tech Hub">Corporate Office / Tech Hub</option>
+                            <option value="Retail / Plaza">Retail / Plaza</option>
+                            <option value="Healthcare / Medical">Healthcare / Medical</option>
                         </select>
                     </div>
                 </div>
