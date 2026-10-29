@@ -13,9 +13,14 @@ const api = axios.create({
     timeout: 20000,
 });
 
-// Helper: Extract valid JWT access token from Zustand store or localStorage fallback
-export const getAuthToken = () => {
+// Helper: Extract valid JWT access token dynamically checking localStorage, sessionStorage and Zustand store
+export const getAccessToken = () => {
     try {
+        // 1. Direct storage check (conditional token storage logic)
+        const directToken = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+        if (directToken) return directToken;
+
+        // 2. Zustand auth store check
         const state = useAuthStore.getState();
         let token =
             state.accessToken ||
@@ -45,11 +50,31 @@ export const getAuthToken = () => {
     }
 };
 
-// Request Interceptor: Automatically attach Bearer token from useAuthStore
+export const getAuthToken = getAccessToken;
+
+// Conditional Token Storage Handler (as per Task 2)
+export const handleAuthSuccess = (tokens, rememberMe = true) => {
+    const storage = rememberMe ? localStorage : sessionStorage;
+
+    // Clear potential stale tokens from both storages first
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+
+    const access = tokens?.access || tokens?.accessToken || tokens?.access_token || (typeof tokens === 'string' ? tokens : '');
+    const refresh = tokens?.refresh || tokens?.refreshToken || tokens?.refresh_token || '';
+
+    // Save to selected storage
+    if (access) storage.setItem('access_token', access);
+    if (refresh) storage.setItem('refresh_token', refresh);
+};
+
+// Request Interceptor: Automatically attach Bearer token checking both storages dynamically
 api.interceptors.request.use(
     (config) => {
         try {
-            const token = getAuthToken();
+            const token = getAccessToken();
             if (token) {
                 config.headers = config.headers || {};
                 config.headers.Authorization = `Bearer ${token}`;
@@ -59,7 +84,7 @@ api.interceptors.request.use(
                 delete config.headers['Content-Type'];
             }
         } catch (err) {
-            console.warn('[API Request Interceptor] Failed to extract token from store:', err);
+            console.warn('[API Request Interceptor] Failed to extract token:', err);
         }
         return config;
     },
@@ -504,36 +529,110 @@ export const waitlist = {
 export const organization = {
     /**
      * Retrieve staging bay configuration via GET /api/v1/organization/staging-config/
+     * @param {string} [tokenOverride] - Optional JWT token
      */
-    getStagingConfig: async () => {
-        const response = await api.get('organization/staging-config/');
+    getStagingConfig: async (tokenOverride = null) => {
+        const token = tokenOverride || getAccessToken();
+        const config = {
+            headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+        };
+        const response = await api.get('organization/staging-config/', config);
         return response.data;
     },
 
     /**
      * Configure staging bays via POST /api/v1/organization/staging-config/
      * @param {Object} data - Staging bay config payload
+     * @param {string} [tokenOverride] - Optional JWT token
      */
-    saveStagingConfig: async (data) => {
-        const response = await api.post('organization/staging-config/', data);
-        return response.data;
+    saveStagingConfig: async (data, tokenOverride = null) => {
+        const token = tokenOverride || getAccessToken();
+        const payload = {
+            notes: data.notes || data.staging_notes || data.stagingBayNotes || '',
+            staging_notes: data.staging_notes || data.notes || data.stagingBayNotes || '',
+            staging_bay: data.staging_bay || data.notes || '',
+            category: data.category || '',
+            cluster: data.cluster || '',
+            ...data,
+        };
+        const config = {
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+        };
+        try {
+            const response = await api.post('organization/staging-config/', payload, config);
+            return response.data;
+        } catch (err) {
+            // Handle 405 Method Not Allowed by falling back to PUT / PATCH if update route is configured
+            if (err.response?.status === 405) {
+                try {
+                    const putRes = await api.put('organization/staging-config/', payload, config);
+                    return putRes.data;
+                } catch {
+                    const patchRes = await api.patch('organization/staging-config/', payload, config);
+                    return patchRes.data;
+                }
+            }
+            throw err;
+        }
     },
 
     /**
      * Manage evacuation schedules via GET /api/v1/organization/schedule/
+     * @param {string} [tokenOverride] - Optional JWT token
      */
-    getSchedules: async () => {
-        const response = await api.get('organization/schedule/');
+    getSchedules: async (tokenOverride = null) => {
+        const token = tokenOverride || getAccessToken();
+        const config = {
+            headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+        };
+        const response = await api.get('organization/schedule/', config);
         return response.data;
     },
 
     /**
      * Save evacuation schedule via POST /api/v1/organization/schedule/
      * @param {Object} data - Schedule payload
+     * @param {string} [tokenOverride] - Optional JWT token
      */
-    saveSchedule: async (data) => {
-        const response = await api.post('organization/schedule/', data);
-        return response.data;
+    saveSchedule: async (data, tokenOverride = null) => {
+        const token = tokenOverride || getAccessToken();
+        const payload = {
+            frequency: data.frequency || 'weekly',
+            time_slot: data.time_slot || data.timeSlot || 'morning',
+            waste_streams: Array.isArray(data.waste_streams) ? data.waste_streams : (data.wasteTypes || []),
+            waste_types: Array.isArray(data.waste_streams) ? data.waste_streams : (data.wasteTypes || []),
+            category: data.category || '',
+            ...data,
+        };
+        const config = {
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+        };
+        try {
+            const response = await api.post('organization/schedule/', payload, config);
+            return response.data;
+        } catch (err) {
+            // Handle 405 Method Not Allowed by falling back to PUT / PATCH if update route is configured
+            if (err.response?.status === 405) {
+                try {
+                    const putRes = await api.put('organization/schedule/', payload, config);
+                    return putRes.data;
+                } catch {
+                    const patchRes = await api.patch('organization/schedule/', payload, config);
+                    return patchRes.data;
+                }
+            }
+            throw err;
+        }
     },
 };
 

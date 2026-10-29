@@ -1,6 +1,6 @@
 // src/pages/auth/Login.jsx
 import React, { useState } from 'react';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useAuthStore, handleAuthSuccess } from '../../store/useAuthStore';
 import { auth } from '../../services/api';
 import Logo from '../../components/common/Logo';
 import Button from '../../components/common/Button';
@@ -60,7 +60,10 @@ export default function Login({ onSwitchToRegister }) {
                 impact_score: data?.user?.impact_score ?? 0,
             };
 
-            // Save tokens & user session to store and localStorage
+            // Conditional Token Storage Logic: localStorage vs sessionStorage
+            handleAuthSuccess({ access: accessToken, refresh: refreshToken }, rememberMe);
+
+            // Save tokens & user session to store and storage
             login(userData, role, rememberMe, {
                 access: accessToken,
                 refresh: refreshToken,

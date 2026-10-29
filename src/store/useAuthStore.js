@@ -2,6 +2,28 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
+/**
+ * Conditional Token Storage Logic:
+ * If rememberMe is true, tokens persist across browser sessions in localStorage.
+ * If rememberMe is false, tokens persist only for current browser session in sessionStorage.
+ */
+export const handleAuthSuccess = (tokens, rememberMe = true) => {
+    const storage = rememberMe ? localStorage : sessionStorage;
+
+    // Clear potential stale tokens from both storages first
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+
+    const access = tokens?.access || tokens?.accessToken || tokens?.access_token || (typeof tokens === 'string' ? tokens : '');
+    const refresh = tokens?.refresh || tokens?.refreshToken || tokens?.refresh_token || '';
+
+    // Save to selected storage
+    if (access) storage.setItem('access_token', access);
+    if (refresh) storage.setItem('refresh_token', refresh);
+};
+
 export const useAuthStore = create(
     persist(
         (set) => ({
@@ -20,6 +42,11 @@ export const useAuthStore = create(
             login: (userData, role, remember = true, tokens = null) => {
                 const access = tokens?.access || tokens?.accessToken || tokens?.access_token || userData?.access || userData?.accessToken || userData?.access_token || userData?.token || null;
                 const refresh = tokens?.refresh || tokens?.refreshToken || tokens?.refresh_token || userData?.refresh || userData?.refreshToken || userData?.refresh_token || null;
+
+                // Conditional token storage logic: localStorage vs sessionStorage
+                if (access || refresh) {
+                    handleAuthSuccess({ access, refresh }, remember);
+                }
 
                 // Clean slate defaults: newly registered and logged-in users start with 0 pickups & 0 impact score
                 const cleanUser = userData ? {
@@ -73,23 +100,48 @@ export const useAuthStore = create(
             },
 
             logout: () => {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                sessionStorage.removeItem('access_token');
+                sessionStorage.removeItem('refresh_token');
+                localStorage.removeItem('kole-auth-storage');
                 set({
                     user: null,
                     role: 'customer',
                     isAuthenticated: false,
+                    rememberMe: true,
                     accessToken: null,
                     refreshToken: null,
                     tokens: null,
                     subscription: null,
                     activeRequests: []
                 });
-                localStorage.removeItem('kole-auth-storage');
             },
         }),
         {
             name: 'kole-auth-storage',
             storage: createJSONStorage(() => localStorage),
             version: 1,
+            onRehydrateStorage: () => (state) => {
+                if (state && state.isAuthenticated) {
+                    const localToken = localStorage.getItem('access_token');
+                    const sessionToken = sessionStorage.getItem('access_token');
+
+                    // If logged in with rememberMe === false and sessionToken is missing (tab was closed), clear session
+                    if (state.rememberMe === false && !sessionToken) {
+                        state.user = null;
+                        state.isAuthenticated = false;
+                        state.accessToken = null;
+                        state.refreshToken = null;
+                        state.tokens = null;
+                        localStorage.removeItem('kole-auth-storage');
+                    } else if (state.rememberMe === true && !localToken && state.accessToken) {
+                        // Restore tokens to localStorage if rememberMe was true
+                        localStorage.setItem('access_token', state.accessToken);
+                        if (state.refreshToken) localStorage.setItem('refresh_token', state.refreshToken);
+                    }
+                }
+            },
             migrate: (persistedState) => {
                 if (!persistedState) return persistedState;
                 const activeRequests = (persistedState.activeRequests || []).filter(

@@ -182,7 +182,16 @@ export default function OrganizationCheckout({
         setIsProcessing(true);
         setErrorMessage('');
 
-        const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_sample_key';
+        const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+
+        // Fallback guard and error check before triggering PaystackPop.setup()
+        if (!PAYSTACK_PUBLIC_KEY || typeof PAYSTACK_PUBLIC_KEY !== 'string' || PAYSTACK_PUBLIC_KEY.trim() === '' || PAYSTACK_PUBLIC_KEY.includes('xxxxxxxx')) {
+            console.error('[Paystack Checkout Error] PAYSTACK_PUBLIC_KEY is missing or undefined in environment variables.');
+            setErrorMessage('Paystack Public Key is missing or invalid. Please configure VITE_PAYSTACK_PUBLIC_KEY in your environment.');
+            setIsProcessing(false);
+            return;
+        }
+
         const reference = `KL-ORG-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const paystackMetadata = {
@@ -211,7 +220,7 @@ export default function OrganizationCheckout({
         if (window.PaystackPop && typeof window.PaystackPop.setup === 'function') {
             try {
                 const handler = window.PaystackPop.setup({
-                    key: paystackKey,
+                    key: PAYSTACK_PUBLIC_KEY,
                     email: officialEmail,
                     amount: fees.totalInKobo,
                     currency: 'NGN',
@@ -230,13 +239,14 @@ export default function OrganizationCheckout({
                 });
                 handler.openIframe();
             } catch (err) {
-                console.warn('[Paystack Pop] Initialization fallback:', err);
-                // Graceful fallback for test environments
-                setTimeout(() => handleCompleteSuccess(reference), 900);
+                console.error('[Paystack Pop] Initialization error:', err);
+                setErrorMessage('Failed to launch Paystack modal: ' + (err?.message || 'Unknown error'));
+                setIsProcessing(false);
             }
         } else {
-            // Testing / offline sandbox fallback
-            setTimeout(() => handleCompleteSuccess(reference), 900);
+            console.error('[Paystack Pop] Paystack inline script is not loaded.');
+            setErrorMessage('Paystack checkout script is not loaded. Please verify your internet connection.');
+            setIsProcessing(false);
         }
     };
 
@@ -254,6 +264,22 @@ export default function OrganizationCheckout({
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
             <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 text-xs space-y-4 my-auto relative animate-in zoom-in-95 duration-200">
                 
+                {/* User-Friendly Floating Toast Notice */}
+                {errorMessage && (
+                    <div className="absolute top-3 left-4 right-4 z-50 bg-rose-600 text-white p-3 rounded-2xl shadow-xl flex items-center justify-between gap-2 text-xs animate-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center gap-2">
+                            <AlertCircle size={16} className="text-white shrink-0" />
+                            <span className="font-semibold">{errorMessage}</span>
+                        </div>
+                        <button
+                            onClick={() => setErrorMessage('')}
+                            className="text-white/80 hover:text-white p-0.5 rounded cursor-pointer"
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+                )}
+
                 {/* Close / Back Header */}
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <button

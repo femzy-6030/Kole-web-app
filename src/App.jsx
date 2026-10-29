@@ -85,6 +85,19 @@ export default function App() {
 
     const [isCollectorRoute, setIsCollectorRoute] = useState(checkIsCollectorRoute);
 
+    // Check both localStorage and sessionStorage on mount for Collector & General Session Persistence
+    useEffect(() => {
+        const sessionToken = sessionStorage.getItem('access_token');
+        const authState = useAuthStore.getState();
+
+        if (authState.isAuthenticated) {
+            // Unchecking "Remember Me" clears session tokens as soon as the browser tab is closed
+            if (authState.rememberMe === false && !sessionToken) {
+                authState.logout();
+            }
+        }
+    }, []);
+
     // Auth View State: 'login' | 'register' | 'collector-onboard'
     const [authMode, setAuthMode] = useState(() => {
         if (typeof window !== 'undefined' && checkIsCollectorOnboardRoute()) {

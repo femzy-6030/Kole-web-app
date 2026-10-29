@@ -1,6 +1,6 @@
 // src/pages/collector/CollectorLogin.jsx
 import React, { useState } from 'react';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useAuthStore, handleAuthSuccess } from '../../store/useAuthStore';
 import { useClusterStore } from '../../store/useClusterStore';
 import Button from '../../components/common/Button';
 import Logo from '../../components/common/Logo';
@@ -59,8 +59,16 @@ export default function CollectorLogin({ onLoginSuccess, onNavigateToOnboarding,
                 accountName: 'Osogbo Central Cleaners Ltd',
             };
 
+            const operatorTokens = {
+                access: `kole-operator-jwt-${Date.now()}`,
+                refresh: `kole-operator-refresh-${Date.now()}`
+            };
+
+            // Conditional token storage logic: localStorage if rememberMe is true, sessionStorage if false
+            handleAuthSuccess(operatorTokens, rememberMe);
+
             // Login into auth store with 'collector' role and session persistence flag
-            login(collectorData, 'collector', rememberMe);
+            login(collectorData, 'collector', rememberMe, operatorTokens);
             setIsLoading(false);
 
             if (onLoginSuccess) {
