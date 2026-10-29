@@ -6,7 +6,6 @@ import CollectorSidebar from '../components/collector/CollectorSidebar';
 import {
     Truck,
     ShieldCheck,
-    Layers,
     LifeBuoy,
     LogOut,
     ExternalLink,
@@ -20,7 +19,7 @@ import {
 
 export default function CollectorLayout({ activeSection = 'requests', onNavigate, children }) {
     const { user, logout } = useAuthStore();
-    const { activeClusters, registeredCollectors, assistanceTickets } = useClusterStore();
+    const { registeredCollectors, assistanceTickets } = useClusterStore();
     const [isOnDuty, setIsOnDuty] = useState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -46,13 +45,6 @@ export default function CollectorLayout({ activeSection = 'requests', onNavigate
             label: 'Collector Profiles',
             icon: ShieldCheck,
             badge: 'Verified',
-        },
-        {
-            key: 'clusters',
-            path: '/collector/clusters',
-            label: 'Geographic Clusters',
-            icon: Layers,
-            badge: '1 Assigned',
         },
         {
             key: 'assistances',

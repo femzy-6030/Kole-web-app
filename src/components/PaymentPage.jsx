@@ -345,11 +345,11 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                 data.public_key ||
                 data.publicKey ||
                 data.key ||
-                import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+                import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
 
-            if (!paystackKey) {
-                console.error('[Paystack Checkout] Missing Paystack Public Key. Neither backend nor VITE_PAYSTACK_PUBLIC_KEY provided one.');
-                setErrorMessage('Payment configuration error: Paystack Public Key is missing. Please contact support.');
+            if (!paystackKey || paystackKey.trim() === '' || paystackKey.includes('xxxxxxxx')) {
+                console.error('[Paystack Checkout] Missing or invalid Paystack Public Key.');
+                setErrorMessage('Payment configuration error: Paystack Public Key is missing or invalid. Please check your environment settings.');
                 setStatus('error');
                 return;
             }

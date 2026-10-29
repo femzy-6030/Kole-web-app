@@ -182,7 +182,7 @@ export default function OrganizationCheckout({
         setIsProcessing(true);
         setErrorMessage('');
 
-        const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+        const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
 
         // Fallback guard and error check before triggering PaystackPop.setup()
         if (!PAYSTACK_PUBLIC_KEY || typeof PAYSTACK_PUBLIC_KEY !== 'string' || PAYSTACK_PUBLIC_KEY.trim() === '' || PAYSTACK_PUBLIC_KEY.includes('xxxxxxxx')) {

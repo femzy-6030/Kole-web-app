@@ -1,7 +1,6 @@
 // src/pages/collector/CollectorRequestsView.jsx
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useClusterStore } from '../../store/useClusterStore';
 import { pickups, dispatch } from '../../services/api';
 import Button from '../../components/common/Button';
 import {
@@ -24,9 +23,11 @@ import {
 
 export default function CollectorRequestsView() {
     const { activeRequests, user } = useAuthStore();
-    const { activeClusters } = useClusterStore();
 
-    const [selectedCluster, setSelectedCluster] = useState('All');
+    // Assigned cluster zone for the collector (Single-Zone field operations)
+    const assignedArea = user?.Area || user?.area || 'Oke-Fia';
+    const assignedClusterName = user?.assignedCluster || (assignedArea.toLowerCase().endsWith('zone') ? assignedArea : `${assignedArea} Zone`);
+
     const [selectedPriority, setSelectedPriority] = useState('All'); // 'All' | 'SOS' | 'SCHEDULED'
     const [selectedStatus, setSelectedStatus] = useState('ALL'); // 'ALL' | 'PENDING' | 'IN_TRANSIT' | 'COMPLETED'
     
@@ -108,8 +109,8 @@ export default function CollectorRequestsView() {
             customerName: 'Aisha Adeleke',
             phone: '08123456789',
             location: {
-                area: 'Station Road',
-                streetAddress: 'Plot 14, Station Road Service Lane',
+                area: 'Oke-Fia',
+                streetAddress: 'Plot 14, Oke-Fia Service Lane',
                 stagingInstructions: 'Blue wheelie bin positioned outside curb.',
             },
             wastePhoto: null,
@@ -126,8 +127,8 @@ export default function CollectorRequestsView() {
             customerName: 'Engr. Babatunde Gbadamosi',
             phone: '08098765432',
             location: {
-                area: 'Sabo',
-                streetAddress: 'Sabo Market Junction, Osogbo',
+                area: 'Oke-Fia',
+                streetAddress: 'Oke-Fia High Street, Near Market Junction',
                 stagingInstructions: 'Main compound perimeter gate.',
             },
             wastePhoto: null,
@@ -145,13 +146,15 @@ export default function CollectorRequestsView() {
         ),
     ];
 
-    // Filter tickets
+    // Filter tickets: strictly assigned operational zone or emergency doorstep SOS bids
     const filteredTickets = allTickets.filter((ticket) => {
         const area = ticket.area || ticket.location?.area || 'Oke-Fia';
         const isSOS = ticket.priority === 'CRITICAL_SOS' || ticket.title?.includes('SOS');
         const status = ticketStatuses[ticket.requestId] || ticket.status || 'PENDING_DISPATCH';
 
-        if (selectedCluster !== 'All' && area.toLowerCase() !== selectedCluster.toLowerCase()) {
+        // Filter to collector's assigned operational cluster or emergency SOS bids
+        const matchesZone = !area || area.toLowerCase().includes(assignedArea.toLowerCase()) || assignedArea.toLowerCase().includes(area.toLowerCase());
+        if (!matchesZone && !isSOS) {
             return false;
         }
 
@@ -285,23 +288,13 @@ export default function CollectorRequestsView() {
 
                 {/* Filter Controls Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-800 text-[11px]">
-                    {/* Cluster Filter */}
+                    {/* Assigned Operating Zone Badge */}
                     <div className="flex items-center gap-2 bg-slate-950/80 p-2.5 rounded-2xl border border-slate-800">
                         <MapPin size={14} className="text-emerald-400 shrink-0" />
-                        <span className="text-slate-400 font-bold shrink-0">Cluster:</span>
-                        <select
-                            value={selectedCluster}
-                            onChange={(e) => setSelectedCluster(e.target.value)}
-                            className="w-full bg-transparent text-emerald-300 font-bold focus:outline-none cursor-pointer"
-                        >
-                            <option value="All" className="bg-slate-900 text-white">All Operating Clusters</option>
-                            <option value="Oke-Fia" className="bg-slate-900 text-white">Oke-Fia Zone</option>
-                            <option value="Station Road" className="bg-slate-900 text-white">Station Road Zone</option>
-                            <option value="Sabo" className="bg-slate-900 text-white">Sabo Zone</option>
-                            <option value="Alekuwodo" className="bg-slate-900 text-white">Alekuwodo Zone</option>
-                            <option value="GRA" className="bg-slate-900 text-white">GRA Zone</option>
-                            <option value="Agowande" className="bg-slate-900 text-white">Agowande Zone</option>
-                        </select>
+                        <span className="text-slate-400 font-bold shrink-0">Assigned Zone:</span>
+                        <span className="text-emerald-300 font-bold truncate">
+                            {assignedClusterName}
+                        </span>
                     </div>
 
                     {/* Priority Filter */}
@@ -512,7 +505,7 @@ export default function CollectorRequestsView() {
                         </div>
                         <h3 className="font-black text-slate-800 text-sm">No Matching Tickets in Dispatch Queue</h3>
                         <p className="text-slate-400 text-xs max-w-sm mx-auto">
-                            No requests match the selected cluster filter ({selectedCluster}) or priority. New household dispatches will stream in live.
+                            No requests found for your assigned zone ({assignedClusterName}) or selected filter. New household dispatches will stream in live.
                         </p>
                     </div>
                 )}

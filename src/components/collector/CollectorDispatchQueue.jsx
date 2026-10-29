@@ -15,7 +15,8 @@ import {
 
 export default function CollectorDispatchQueue() {
     const { activeRequests, user } = useAuthStore();
-    const [filterCluster, setFilterCluster] = useState(user?.Area || user?.area || 'All');
+    const assignedArea = user?.Area || user?.area || 'Oke-Fia';
+    const assignedClusterName = user?.assignedCluster || (assignedArea.toLowerCase().endsWith('zone') ? assignedArea : `${assignedArea} Zone`);
 
     // Store state for managing local job statuses during demo handshake
     const [jobStatuses, setJobStatuses] = useState({});
@@ -27,17 +28,16 @@ export default function CollectorDispatchQueue() {
         }));
     };
 
-    // Filter requests based on cluster selector
+    // Filter requests strictly to assigned operational cluster
     const filteredRequests = activeRequests ? activeRequests.filter((req) => {
-        if (filterCluster === 'All') return true;
         const reqArea = req.area || req.location?.area || 'Oke-Fia';
-        return reqArea.toLowerCase() === filterCluster.toLowerCase();
+        return !reqArea || reqArea.toLowerCase().includes(assignedArea.toLowerCase()) || assignedArea.toLowerCase().includes(reqArea.toLowerCase());
     }) : [];
 
     return (
         <div className="space-y-4 max-w-lg mx-auto text-xs pb-20">
 
-            {/* Top Cluster Filter Bar */}
+            {/* Top Stat Bar */}
             <div className="bg-slate-900 text-white rounded-3xl p-5 space-y-3 shadow-md">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
@@ -55,22 +55,14 @@ export default function CollectorDispatchQueue() {
                     </span>
                 </div>
 
-                {/* Operating Cluster Selector */}
+                {/* Operating Cluster Display */}
                 <div className="flex items-center justify-between bg-slate-800/80 p-2.5 rounded-2xl border border-slate-700/60 text-[11px]">
                     <span className="text-slate-400 font-bold flex items-center gap-1.5">
-                        <MapPin size={13} className="text-emerald-400" /> Active Cluster:
+                        <MapPin size={13} className="text-emerald-400" /> Assigned Cluster:
                     </span>
-                    <select
-                        value={filterCluster}
-                        onChange={(e) => setFilterCluster(e.target.value)}
-                        className="bg-slate-900 text-emerald-300 font-bold px-3 py-1 rounded-xl border border-slate-700 focus:outline-none"
-                    >
-                        <option value="All">All Clusters</option>
-                        <option value="Oke-Fia">Oke-Fia Zone</option>
-                        <option value="Station Road">Station Road Zone</option>
-                        <option value="Sabo">Sabo Zone</option>
-                        <option value="Agowande">Agowande Zone</option>
-                    </select>
+                    <span className="text-emerald-300 font-bold px-3 py-1 bg-slate-900 rounded-xl border border-slate-700">
+                        {assignedClusterName}
+                    </span>
                 </div>
             </div>
 

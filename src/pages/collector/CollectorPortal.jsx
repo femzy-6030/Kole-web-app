@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import CollectorLayout from '../../layouts/CollectorLayout';
 import CollectorRequestsView from './CollectorRequestsView';
 import CollectorProfilesView from './CollectorProfilesView';
-import CollectorClustersView from './CollectorClustersView';
 import CollectorAssistancesView from './CollectorAssistancesView';
 
 export default function CollectorPortal({ initialSection = 'requests' }) {
@@ -14,7 +13,6 @@ export default function CollectorPortal({ initialSection = 'requests' }) {
         const hash = window.location.hash.toLowerCase();
 
         if (path.includes('profile') || hash.includes('profile')) return 'profiles';
-        if (path.includes('cluster') || hash.includes('cluster')) return 'clusters';
         if (path.includes('assistance') || hash.includes('assistance') || path.includes('support')) return 'assistances';
         return 'requests';
     };
@@ -44,7 +42,6 @@ export default function CollectorPortal({ initialSection = 'requests' }) {
         <CollectorLayout activeSection={activeSection} onNavigate={handleNavigate}>
             {activeSection === 'requests' && <CollectorRequestsView />}
             {activeSection === 'profiles' && <CollectorProfilesView />}
-            {activeSection === 'clusters' && <CollectorClustersView />}
             {activeSection === 'assistances' && <CollectorAssistancesView />}
         </CollectorLayout>
     );

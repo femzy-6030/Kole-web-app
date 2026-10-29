@@ -5,7 +5,6 @@ import { useClusterStore } from '../../store/useClusterStore';
 import {
     Truck,
     ShieldCheck,
-    Layers,
     LifeBuoy,
     LogOut,
     ExternalLink,
@@ -48,19 +47,6 @@ export default function CollectorSidebar({
             label: 'Collector Profiles',
             icon: ShieldCheck,
             badge: 'Verified',
-        },
-        {
-            key: 'clusters',
-            path: '/collector/clusters',
-            label: 'Geographic Clusters',
-            icon: Layers,
-            // Single-Zone Architecture: Strictly 1 Assigned operating cluster
-            badge: '1 Assigned',
-            customBadge: (
-                <span className="px-2 py-0.5 text-xs bg-slate-800 text-slate-300 rounded-full font-medium">
-                    1 Assigned
-                </span>
-            ),
         },
         {
             key: 'assistances',

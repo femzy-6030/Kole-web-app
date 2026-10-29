@@ -11,22 +11,10 @@ import {
     Users,
     Phone,
     CheckCircle2,
-    ShieldCheck,
-    Lock,
-    KeyRound,
-    ShieldAlert,
-    Eye,
-    EyeOff
+    ShieldCheck
 } from 'lucide-react';
 
 export default function CollectorOnboarding({ onOnboardingComplete }) {
-    // Security Partner Access Key State
-    const VALID_PARTNER_CODE = 'KOLE2026'; // Secret Partner Key
-    const [accessCode, setAccessCode] = useState('');
-    const [isUnlocked, setIsUnlocked] = useState(false);
-    const [codeError, setCodeError] = useState(false);
-    const [showAccessCode, setShowAccessCode] = useState(false);
-
     // Form State
     const DEFAULT_BANKS = [
         { code: '011', name: 'First Bank of Nigeria' },
@@ -82,16 +70,6 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
         setFormData((prev) => ({ ...prev, [field]: value }));
     };
 
-    const handleVerifyAccessCode = (e) => {
-        e.preventDefault();
-        if (accessCode.trim().toUpperCase() === VALID_PARTNER_CODE) {
-            setIsUnlocked(true);
-            setCodeError(false);
-        } else {
-            setCodeError(true);
-        }
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -142,68 +120,7 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
         }
     };
 
-    // 1. PARTNER ACCESS KEY GATE (UNLOCKED VERIFICATION STEP)
-    if (!isUnlocked) {
-        return (
-            <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-                <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-5 shadow-xl border border-slate-100 text-xs">
-
-                    <div className="w-16 h-16 bg-emerald-100 text-brand-primary rounded-3xl flex items-center justify-center mx-auto shadow-inner">
-                        <Lock size={30} />
-                    </div>
-
-                    <div className="space-y-1">
-                        <span className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-100">
-                            Restricted Partner Portal
-                        </span>
-                        <h2 className="text-lg font-black text-slate-800 pt-1">Collector Partner Access</h2>
-                        <p className="text-slate-500 font-medium">
-                            Enter your official KÓLẸ̀ partner invitation code to unlock fleet & bank account setup.
-                        </p>
-                    </div>
-
-                    <form onSubmit={handleVerifyAccessCode} className="space-y-4">
-                        <div className="relative">
-                            <KeyRound size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
-                            <input
-                                type={showAccessCode ? "text" : "password"}
-                                value={accessCode}
-                                onChange={(e) => {
-                                    setAccessCode(e.target.value);
-                                    setCodeError(false);
-                                }}
-                                required
-                                autoFocus
-                                className="w-full pl-10 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-black text-center tracking-widest text-slate-800 focus:outline-none focus:border-brand-primary uppercase"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowAccessCode(!showAccessCode)}
-                                className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
-                                tabIndex="-1"
-                                aria-label={showAccessCode ? "Hide access code" : "Show access code"}
-                            >
-                                {showAccessCode ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
-                        </div>
-
-                        {codeError && (
-                            <p className="text-xs font-bold text-rose-500 flex items-center justify-center gap-1">
-                                <ShieldAlert size={14} /> Invalid Partner Key. Contact KÓLẸ̀ Admin.
-                            </p>
-                        )}
-
-                        <Button type="submit" className="w-full py-3.5 font-bold uppercase tracking-wider text-xs">
-                            Verify Partner Key & Proceed
-                        </Button>
-                    </form>
-
-                </div>
-            </div>
-        );
-    }
-
-    // 2. REGISTRATION SUCCESS VIEW
+    // 1. REGISTRATION SUCCESS VIEW
     if (isSuccess) {
         return (
             <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -228,7 +145,7 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
         );
     }
 
-    // 3. UNLOCKED ONBOARDING FORM VIEW
+    // 2. ONBOARDING FORM VIEW
     return (
         <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 py-8">
             <div className="w-full max-w-lg bg-white rounded-3xl p-8 shadow-xl border border-slate-100 space-y-6 text-xs">
