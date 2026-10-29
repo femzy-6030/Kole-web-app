@@ -18,6 +18,7 @@ export default function SOSModal({ isOpen, onClose, selectedArea = 'Oke-Fia', on
     const fileInputRef = useRef(null);
 
     const [stagingNote, setStagingNote] = useState('');
+    const [photoFile, setPhotoFile] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
     const [photoName, setPhotoName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,6 +30,7 @@ export default function SOSModal({ isOpen, onClose, selectedArea = 'Oke-Fia', on
     const handleFileChange = (e) => {
         const file = e.target.files?.[0];
         if (file) {
+            setPhotoFile(file);
             setPhotoName(file.name);
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -39,6 +41,7 @@ export default function SOSModal({ isOpen, onClose, selectedArea = 'Oke-Fia', on
     };
 
     const handleRemovePhoto = () => {
+        setPhotoFile(null);
         setPhotoPreview(null);
         setPhotoName('');
         if (fileInputRef.current) {
@@ -64,15 +67,17 @@ export default function SOSModal({ isOpen, onClose, selectedArea = 'Oke-Fia', on
         };
 
         try {
-            // Attempt live backend dispatch creation for nearby collectors to inspect and quote
-            await pickups.createPickup({
-                pickup_type: 'EMERGENCY_SOS',
-                area: selectedArea,
-                address: dispatchPayload.address,
-                staging_note: dispatchPayload.stagingNote,
-                photo_url: dispatchPayload.photoUrl,
-                priority: 'HIGH'
-            });
+            // Live backend dispatch creation via multipart/form-data: cluster, address, waste_photo, is_emergency
+            const formData = new FormData();
+            formData.append('cluster', selectedArea);
+            formData.append('address', dispatchPayload.address);
+            formData.append('is_emergency', 'true');
+            if (photoFile) {
+                formData.append('waste_photo', photoFile);
+            }
+            formData.append('staging_note', dispatchPayload.stagingNote);
+
+            await pickups.createPickup(formData);
         } catch (err) {
             console.warn('[SOSModal] Live dispatch API fallback (local state preserved):', err);
         }
@@ -93,6 +98,7 @@ export default function SOSModal({ isOpen, onClose, selectedArea = 'Oke-Fia', on
 
     const handleClose = () => {
         setIsSuccess(false);
+        setPhotoFile(null);
         setPhotoPreview(null);
         setPhotoName('');
         setStagingNote('');

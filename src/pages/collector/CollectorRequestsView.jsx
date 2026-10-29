@@ -1,7 +1,8 @@
 // src/pages/collector/CollectorRequestsView.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useClusterStore } from '../../store/useClusterStore';
+import { pickups, dispatch } from '../../services/api';
 import Button from '../../components/common/Button';
 import {
     Truck,
@@ -30,6 +31,7 @@ export default function CollectorRequestsView() {
     const [selectedStatus, setSelectedStatus] = useState('ALL'); // 'ALL' | 'PENDING' | 'IN_TRANSIT' | 'COMPLETED'
     
     // Local state for bids and statuses
+    const [remoteTickets, setRemoteTickets] = useState([]);
     const [ticketBids, setTicketBids] = useState({});
     const [ticketStatuses, setTicketStatuses] = useState({});
     const [previewPhotoUrl, setPreviewPhotoUrl] = useState(null);
@@ -39,6 +41,42 @@ export default function CollectorRequestsView() {
         etaMinutes: '15',
         unitAssigned: 'Compactor Unit #1',
     });
+
+    // Fetch live pickups from backend API on mount
+    useEffect(() => {
+        let isMounted = true;
+        const fetchLiveTickets = async () => {
+            try {
+                const res = await pickups.getPickups();
+                const list = Array.isArray(res) ? res : (res?.results || res?.data || []);
+                if (isMounted && list.length > 0) {
+                    const mapped = list.map((item) => ({
+                        requestId: item.id ? String(item.id) : (item.requestId || `KL-${Math.floor(100000 + Math.random() * 900000)}`),
+                        title: item.title || (item.is_emergency ? 'Critical Doorstep SOS Clearance' : 'Scheduled Evacuation'),
+                        planKey: item.planKey || (item.is_emergency ? 'one-time' : 'weekly'),
+                        priority: item.is_emergency ? 'CRITICAL_SOS' : (item.priority || 'SCHEDULED'),
+                        amount: item.amount || (item.price ? `₦${Number(item.price).toLocaleString()}` : '₦2,100'),
+                        numericAmount: item.price ? Number(item.price) : 2100,
+                        customerName: item.customer_name || item.customerName || 'Resident Customer',
+                        phone: item.phone || item.customer_phone || '08000000000',
+                        location: {
+                            area: item.cluster || item.area || 'Oke-Fia',
+                            streetAddress: item.address || item.streetAddress || 'Oke-Fia Zone',
+                            stagingInstructions: item.staging_note || item.stagingInstructions || 'Front Staging Bay',
+                        },
+                        wastePhoto: item.waste_photo || item.wastePhoto || null,
+                        createdAt: item.created_at || new Date().toISOString(),
+                        status: item.status || 'PENDING_DISPATCH',
+                    }));
+                    setRemoteTickets(mapped);
+                }
+            } catch (e) {
+                console.warn('[CollectorRequestsView] Live pickups fetch fallback to store/defaults:', e);
+            }
+        };
+        fetchLiveTickets();
+        return () => { isMounted = false; };
+    }, []);
 
     // Seeded realistic requests if activeRequests is empty
     const defaultTickets = [
@@ -98,11 +136,12 @@ export default function CollectorRequestsView() {
         },
     ];
 
-    // Combine store requests with fallback defaults
+    // Combine remote backend tickets + store requests with fallback defaults
+    const combinedSource = [...remoteTickets, ...(activeRequests || [])];
     const allTickets = [
-        ...(activeRequests || []),
+        ...combinedSource,
         ...defaultTickets.filter(
-            (def) => !(activeRequests || []).some((r) => r.requestId === def.requestId)
+            (def) => !combinedSource.some((r) => r.requestId === def.requestId)
         ),
     ];
 
@@ -135,15 +174,31 @@ export default function CollectorRequestsView() {
         });
     };
 
-    const handleSubmitBid = (e) => {
+    const handleSubmitBid = async (e) => {
         e.preventDefault();
         if (!bidModalTicket) return;
 
         const id = bidModalTicket.requestId;
+        const quoteValue = Number(bidForm.quoteAmount);
+
+        // Submit custom price quote via POST /api/v1/pickups/<uuid:pk>/quote/
+        try {
+            await pickups.submitQuote(id, quoteValue);
+        } catch (err) {
+            console.warn('[CollectorRequestsView] Backend submitQuote notice (offline fallback):', err);
+        }
+
+        // Claim dispatch ticket via POST /api/v1/dispatch/claim/<uuid:requestId>/
+        try {
+            await dispatch.claimRequest(id);
+        } catch (err) {
+            console.warn('[CollectorRequestsView] Backend claimRequest notice (offline fallback):', err);
+        }
+
         setTicketBids((prev) => ({
             ...prev,
             [id]: {
-                amount: `₦${Number(bidForm.quoteAmount).toLocaleString()}`,
+                amount: `₦${quoteValue.toLocaleString()}`,
                 eta: `${bidForm.etaMinutes} mins`,
                 unit: bidForm.unitAssigned,
                 submittedAt: new Date().toISOString(),
@@ -158,11 +213,49 @@ export default function CollectorRequestsView() {
         setBidModalTicket(null);
     };
 
-    const handleUpdateStatus = (id, newStatus) => {
+    const handleUpdateStatus = async (id, newStatus) => {
+        if (newStatus === 'IN_TRANSIT') {
+            try {
+                await dispatch.claimRequest(id);
+            } catch (err) {
+                console.warn('[CollectorRequestsView] Backend claimRequest notice:', err);
+            }
+        } else if (newStatus === 'COMPLETED') {
+            // Mark pickup job as completed via POST /api/v1/pickups/<uuid:pk>/complete/
+            try {
+                await pickups.completePickup(id);
+            } catch (err) {
+                console.warn('[CollectorRequestsView] Backend completePickup notice:', err);
+            }
+        }
+
         setTicketStatuses((prev) => ({
             ...prev,
             [id]: newStatus,
         }));
+    };
+
+    // Send real-time GPS coordinates via POST /api/v1/pickups/<uuid:pk>/update-location/
+    const handleSendLiveLocation = async (id) => {
+        if ('geolocation' in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                    try {
+                        await pickups.updateLocation(id, {
+                            latitude: pos.coords.latitude,
+                            longitude: pos.coords.longitude,
+                        });
+                    } catch (e) {
+                        console.warn('[CollectorRequestsView] updateLocation notice:', e);
+                    }
+                },
+                async () => {
+                    try {
+                        await pickups.updateLocation(id, { latitude: 7.7827, longitude: 4.5418 });
+                    } catch {}
+                }
+            );
+        }
     };
 
     return (
@@ -389,6 +482,7 @@ export default function CollectorRequestsView() {
                                                 href={`https://maps.google.com/?q=${encodeURIComponent(`${address}, Osogbo, Nigeria`)}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
+                                                onClick={() => handleSendLiveLocation(ticket.requestId)}
                                                 className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 border border-slate-200"
                                             >
                                                 <Navigation size={13} className="text-emerald-600" /> GPS Route

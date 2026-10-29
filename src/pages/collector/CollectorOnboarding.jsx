@@ -1,5 +1,6 @@
 // src/pages/collector/CollectorOnboarding.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { finance } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useClusterStore } from '../../store/useClusterStore';
 import Button from '../../components/common/Button';
@@ -27,6 +28,42 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
     const [showAccessCode, setShowAccessCode] = useState(false);
 
     // Form State
+    const DEFAULT_BANKS = [
+        { code: '011', name: 'First Bank of Nigeria' },
+        { code: '058', name: 'GTBank (Guaranty Trust)' },
+        { code: '044', name: 'Access Bank' },
+        { code: '057', name: 'Zenith Bank' },
+        { code: '999992', name: 'OPay Digital Services' },
+        { code: '999991', name: 'Palmpay' },
+        { code: '033', name: 'United Bank for Africa (UBA)' },
+    ];
+    const [bankList, setBankList] = useState(DEFAULT_BANKS);
+    const [selectedBankCode, setSelectedBankCode] = useState('011');
+
+    useEffect(() => {
+        let isMounted = true;
+        const fetchBanks = async () => {
+            try {
+                const data = await finance.getBanks();
+                const list = Array.isArray(data) ? data : (data?.data || data?.results || []);
+                if (isMounted && list.length > 0) {
+                    const formatted = list.map((b) => ({
+                        code: b.code || b.bank_code || String(b.id),
+                        name: b.name || b.bank_name,
+                    }));
+                    setBankList(formatted);
+                    if (formatted[0]?.code) {
+                        setSelectedBankCode(formatted[0].code);
+                    }
+                }
+            } catch (err) {
+                console.warn('[CollectorOnboarding] finance.getBanks fallback:', err);
+            }
+        };
+        fetchBanks();
+        return () => { isMounted = false; };
+    }, []);
+
     const [formData, setFormData] = useState({
         collectorName: '',
         phone: '',
@@ -80,10 +117,21 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
             accountName: formData.accountName.trim(),
         };
 
-        // 1. Save profile payload & activate coverage cluster in useClusterStore
+        // 1. Create Paystack Subaccount via POST /api/v1/finance/subaccount/
+        try {
+            await finance.createSubaccount({
+                bank_code: selectedBankCode || '011',
+                account_number: formData.accountNumber.trim(),
+                account_name: formData.accountName.trim(),
+            });
+        } catch (subErr) {
+            console.warn('[CollectorOnboarding] finance.createSubaccount notice (offline fallback):', subErr);
+        }
+
+        // 2. Save profile payload & activate coverage cluster in useClusterStore
         await useClusterStore.getState().registerCollector(collectorPayload);
 
-        // 2. Log in operator session
+        // 3. Log in operator session
         useAuthStore.getState().login(collectorPayload, 'collector', true);
 
         setIsSubmitting(false);
@@ -290,16 +338,17 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
                             <label className="font-bold text-slate-700 block mb-1">Select Bank Name</label>
                             <select
                                 value={formData.bankName}
-                                onChange={(e) => handleChange('bankName', e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    const match = bankList.find((b) => b.name === val);
+                                    if (match) setSelectedBankCode(match.code);
+                                    handleChange('bankName', val);
+                                }}
                                 className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
                             >
-                                <option value="First Bank of Nigeria">First Bank of Nigeria</option>
-                                <option value="GTBank">GTBank (Guaranty Trust)</option>
-                                <option value="Access Bank">Access Bank</option>
-                                <option value="Zenith Bank">Zenith Bank</option>
-                                <option value="OPay">OPay Digital Services</option>
-                                <option value="Palmpay">Palmpay</option>
-                                <option value="UBA">United Bank for Africa (UBA)</option>
+                                {bankList.map((b) => (
+                                    <option key={b.code} value={b.name}>{b.name}</option>
+                                ))}
                             </select>
                         </div>
 

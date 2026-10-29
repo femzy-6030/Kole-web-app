@@ -54,6 +54,10 @@ api.interceptors.request.use(
                 config.headers = config.headers || {};
                 config.headers.Authorization = `Bearer ${token}`;
             }
+            // Allow browser to calculate boundary for FormData payloads
+            if (config.data instanceof FormData) {
+                delete config.headers['Content-Type'];
+            }
         } catch (err) {
             console.warn('[API Request Interceptor] Failed to extract token from store:', err);
         }
@@ -84,21 +88,33 @@ api.interceptors.response.use(
     }
 );
 
-// ========================================================
-// API Service Modules matching backend routes
-// ========================================================
+// Helper function to normalize JWT token format
+const normalizeTokens = (data) => {
+    if (!data) return data;
+    const access = data.access || data.access_token || data.accessToken || data.token;
+    const refresh = data.refresh || data.refresh_token || data.refreshToken;
+    return {
+        ...data,
+        access,
+        refresh,
+        accessToken: access,
+        refreshToken: refresh,
+    };
+};
 
+// ========================================================
+// 1. Authentication & Onboarding (/auth/)
+// ========================================================
 export const auth = {
     /**
-     * Authenticate user with credentials via standardized POST /auth/login/
-     * @param {Object} payload - { username, password, email }
+     * Standard login via POST /api/v1/auth/login/
+     * @param {Object} payload - { email, password, username }
+     * @returns {Promise<Object>} Returns JWT access/refresh tokens
      */
     login: async (payload) => {
+        const email = (payload.email || (payload.username && payload.username.includes('@') ? payload.username : '') || payload.username || '').trim();
         const username = (payload.username || payload.email || '').trim();
         const password = payload.password || '';
-
-        // Standard backend expects email and password
-        const email = payload.email || (username.includes('@') ? username : username);
 
         const loginPayload = {
             email: email,
@@ -106,56 +122,16 @@ export const auth = {
             password: password,
         };
 
-        const normalizeTokens = (data) => {
-            if (!data) return data;
-            const access = data.access || data.access_token || data.accessToken || data.token;
-            const refresh = data.refresh || data.refresh_token || data.refreshToken;
-            return {
-                ...data,
-                access,
-                refresh,
-                accessToken: access,
-                refreshToken: refresh,
-            };
-        };
-
-        // Standardized backend login endpoint: POST auth/login/
-        // Directly hits live endpoint without probing nonexistent /token/
         const response = await api.post('auth/login/', loginPayload);
         return normalizeTokens(response.data);
     },
 
     /**
-     * Authenticate with Google OAuth via POST /auth/google/
-     * @param {Object} payload - { access_token, credential, role }
-     */
-    googleAuth: async (payload) => {
-        const response = await api.post('auth/google/', payload);
-        const data = response.data;
-        const access = data?.access || data?.access_token || data?.accessToken || data?.token;
-        const refresh = data?.refresh || data?.refresh_token || data?.refreshToken;
-        return {
-            ...data,
-            access,
-            refresh,
-            accessToken: access,
-            refreshToken: refresh,
-        };
-    },
-
-    /**
-     * Refresh token method (placeholder, backend sessions re-authenticate via auth/login/)
-     */
-    refreshToken: async () => {
-        return null;
-    },
-
-    /**
-     * Register a new user account via POST /auth/register/
-     * @param {Object} payload - Registration details
+     * Register standard user via POST /api/v1/auth/register/
+     * @param {Object} payload - { username, email, password, role, ... }
+     * @returns {Promise<Object>}
      */
     register: async (payload) => {
-        // Map role to backend choices: RESIDENT | COLLECTOR_ADMIN | COLLECTOR_DRIVER
         let backendRole = 'RESIDENT';
         const roleLower = (payload.role || '').toLowerCase();
         if (roleLower === 'organization' || roleLower === 'collector_admin' || roleLower === 'collector') {
@@ -164,7 +140,6 @@ export const auth = {
             backendRole = 'COLLECTOR_DRIVER';
         }
 
-        // Split full name if first_name / last_name are not explicitly provided
         const rawName = (payload.full_name || payload.fullName || payload.name || '').trim();
         let firstName = payload.first_name || '';
         let lastName = payload.last_name || '';
@@ -175,18 +150,21 @@ export const auth = {
         }
 
         const cleanEmail = (payload.email || payload.username || '').trim();
+        const cleanUsername = (payload.username || payload.email || cleanEmail.split('@')[0] || '').trim();
         const cleanPhone = (payload.phone || payload.phone_number || payload.phoneNumber || '').trim();
 
         const formattedPayload = {
+            username: cleanUsername,
             email: cleanEmail,
             password: payload.password,
+            role: backendRole,
             first_name: firstName,
             last_name: lastName,
             phone: cleanPhone,
-            role: backendRole,
+            ...payload,
         };
 
-        if (backendRole === 'COLLECTOR_ADMIN') {
+        if (backendRole === 'COLLECTOR_ADMIN' && !formattedPayload.collector_profile) {
             formattedPayload.collector_profile = {
                 organization_name: payload.organization_name || payload.orgName || rawName || 'Fleet Operator',
                 operating_license_num: payload.operating_license_num || payload.license || 'LIC-' + Math.floor(1000 + Math.random() * 9000),
@@ -194,17 +172,51 @@ export const auth = {
         }
 
         const response = await api.post('auth/register/', formattedPayload);
-        return response.data;
+        return normalizeTokens(response.data);
+    },
+
+    /**
+     * Google OAuth verification via POST /api/v1/auth/google/
+     * @param {Object} payload - { credential: <google_id_token>, access_token, role }
+     * @returns {Promise<Object>} Returns JWT tokens, email, and role
+     */
+    googleAuth: async (payload) => {
+        const credential = payload.credential || payload.access_token || payload.token;
+        const googlePayload = {
+            credential,
+            ...(payload.role ? { role: payload.role } : {}),
+            ...payload,
+        };
+        const response = await api.post('auth/google/', googlePayload);
+        return normalizeTokens(response.data);
+    },
+
+    /**
+     * Refresh token method
+     */
+    refreshToken: async (refreshToken) => {
+        try {
+            const token = refreshToken || useAuthStore.getState().refreshToken;
+            if (!token) return null;
+            const response = await api.post('auth/token/refresh/', { refresh: token });
+            return normalizeTokens(response.data);
+        } catch {
+            return null;
+        }
     },
 };
 
+// ========================================================
+// 2. Pickups & Dispatch Operations (/pickups/)
+// ========================================================
 export const pickups = {
     /**
-     * Retrieve available/assigned pickups via GET /pickups/ (or GET /dispatch/queue/)
+     * Fetch list of user or cluster collector pickups via GET /api/v1/pickups/
+     * @param {Object} params - Query parameters (e.g. { cluster, status })
      */
-    getPickups: async () => {
+    getPickups: async (params = {}) => {
         try {
-            const response = await api.get('pickups/');
+            const response = await api.get('pickups/', { params });
             return response.data;
         } catch (err) {
             if (err.response?.status === 404) {
@@ -216,12 +228,42 @@ export const pickups = {
     },
 
     /**
-     * Create a new pickup dispatch request via POST /pickups/ (or POST /dispatch/request/)
-     * @param {Object} data - Pickup request payload
+     * Create new pickup / emergency request via multipart/form-data
+     * FormData fields: cluster, address, waste_photo, is_emergency
+     * POST /api/v1/pickups/
+     * @param {FormData|Object} data - Form data or plain JS object
      */
     createPickup: async (data) => {
+        let payload = data;
+        if (!(data instanceof FormData) && typeof data === 'object' && data !== null) {
+            const formData = new FormData();
+            const clusterVal = data.cluster || data.area || data.Area || 'Oke-Fia';
+            const addressVal = data.address || data.streetAddress || '';
+            const isEmergency = data.is_emergency !== undefined
+                ? Boolean(data.is_emergency)
+                : (data.pickup_type === 'EMERGENCY_SOS' || data.isEmergency || data.priority === 'CRITICAL_SOS');
+
+            formData.append('cluster', clusterVal);
+            formData.append('address', addressVal);
+            formData.append('is_emergency', isEmergency ? 'true' : 'false');
+
+            const file = data.waste_photo || data.wastePhoto || data.photo || data.file;
+            if (file instanceof File || file instanceof Blob) {
+                formData.append('waste_photo', file);
+            }
+
+            // Append optional metadata
+            const excludedKeys = ['cluster', 'address', 'is_emergency', 'waste_photo', 'wastePhoto', 'photo', 'file'];
+            Object.keys(data).forEach((key) => {
+                if (!excludedKeys.includes(key) && data[key] !== undefined && data[key] !== null) {
+                    formData.append(key, typeof data[key] === 'object' ? JSON.stringify(data[key]) : data[key]);
+                }
+            });
+            payload = formData;
+        }
+
         try {
-            const response = await api.post('pickups/', data);
+            const response = await api.post('pickups/', payload);
             return response.data;
         } catch (err) {
             if (err.response?.status === 404) {
@@ -233,17 +275,159 @@ export const pickups = {
     },
 
     /**
-     * Update/Claim an existing pickup request via PUT/PATCH /pickups/{id}/ (or /dispatch/claim/{id}/)
-     * @param {string|number} id - Pickup request ID / UUID
-     * @param {Object} data - Update data / claim status
+     * Retrieve a specific pickup request via GET /api/v1/pickups/<uuid:pk>/
+     * @param {string} pk - Pickup UUID / primary key
      */
-    updatePickup: async (id, data) => {
+    getPickup: async (pk) => {
+        const response = await api.get(`pickups/${pk}/`);
+        return response.data;
+    },
+
+    /**
+     * Update a specific pickup request via PUT /api/v1/pickups/<uuid:pk>/
+     * @param {string} pk - Pickup UUID / primary key
+     * @param {Object} data - Update payload
+     */
+    updatePickup: async (pk, data) => {
         try {
-            const response = await api.put(`pickups/${id}/`, data);
+            const response = await api.put(`pickups/${pk}/`, data);
             return response.data;
         } catch (err) {
             if (err.response?.status === 404 || err.response?.status === 405) {
-                const fallbackRes = await api.patch(`dispatch/claim/${id}/`, data);
+                try {
+                    const patchRes = await api.patch(`pickups/${pk}/`, data);
+                    return patchRes.data;
+                } catch {
+                    const fallbackRes = await api.patch(`dispatch/claim/${pk}/`, data);
+                    return fallbackRes.data;
+                }
+            }
+            throw err;
+        }
+    },
+
+    /**
+     * Cancel a specific pickup request via DELETE /api/v1/pickups/<uuid:pk>/
+     * @param {string} pk - Pickup UUID / primary key
+     */
+    cancelPickup: async (pk) => {
+        const response = await api.delete(`pickups/${pk}/`);
+        return response.data;
+    },
+
+    /**
+     * Submit custom price quote for emergency jobs via POST /api/v1/pickups/<uuid:pk>/quote/
+     * @param {string} pk - Pickup UUID / primary key
+     * @param {number|Object} price - { price } or number
+     */
+    submitQuote: async (pk, price) => {
+        const payload = typeof price === 'object' ? price : { price: Number(price) };
+        const response = await api.post(`pickups/${pk}/quote/`, payload);
+        return response.data;
+    },
+
+    /**
+     * Send real-time GPS coordinates for live tracking via POST /api/v1/pickups/<uuid:pk>/update-location/
+     * @param {string} pk - Pickup UUID / primary key
+     * @param {Object} coords - { latitude, longitude }
+     */
+    updateLocation: async (pk, coords) => {
+        const payload = {
+            latitude: coords.latitude ?? coords.lat,
+            longitude: coords.longitude ?? coords.lng ?? coords.long,
+        };
+        const response = await api.post(`pickups/${pk}/update-location/`, payload);
+        return response.data;
+    },
+
+    /**
+     * Mark pickup job as completed and disposed via POST /api/v1/pickups/<uuid:pk>/complete/
+     * @param {string} pk - Pickup UUID / primary key
+     * @param {Object} [data] - Completion metadata or proof
+     */
+    completePickup: async (pk, data = {}) => {
+        const response = await api.post(`pickups/${pk}/complete/`, data);
+        return response.data;
+    },
+};
+
+// ========================================================
+// 3. Legacy Dispatch & Cluster APIs (/dispatch/)
+// ========================================================
+export const dispatch = {
+    /**
+     * Alternative legacy dispatch creation via POST /api/v1/dispatch/request/
+     * @param {Object} data - Dispatch payload
+     */
+    createRequest: async (data) => {
+        const response = await api.post('dispatch/request/', data);
+        return response.data;
+    },
+
+    /**
+     * View unassigned cluster requests for available collectors via GET /api/v1/dispatch/queue/
+     */
+    getQueue: async () => {
+        const response = await api.get('dispatch/queue/');
+        return response.data;
+    },
+
+    /**
+     * Collectors claim a specific pickup request from the queue via POST /api/v1/dispatch/claim/<uuid:requestId>/
+     * @param {string} requestId - Request UUID
+     * @param {Object} [data] - Optional claim metadata
+     */
+    claimRequest: async (requestId, data = {}) => {
+        const response = await api.post(`dispatch/claim/${requestId}/`, data);
+        return response.data;
+    },
+};
+
+// ========================================================
+// 4. Finance & Paystack Integration (/finance/ & /payments/)
+// ========================================================
+export const finance = {
+    /**
+     * Collector onboarding / subaccount creation via POST /api/v1/finance/subaccount/
+     * @param {Object} payload - { bank_code, account_number, account_name }
+     */
+    createSubaccount: async ({ bank_code, account_number, account_name }) => {
+        const response = await api.post('finance/subaccount/', {
+            bank_code,
+            account_number,
+            account_name,
+        });
+        return response.data;
+    },
+
+    /**
+     * List supported Nigerian banks via GET /api/v1/finance/banks/
+     */
+    getBanks: async () => {
+        const response = await api.get('finance/banks/');
+        return response.data;
+    },
+
+    /**
+     * Payout request via POST /api/v1/finance/withdraw/
+     * @param {number|Object} amount - { amount } or number
+     */
+    requestWithdrawal: async (amount) => {
+        const payload = typeof amount === 'object' ? amount : { amount: Number(amount) };
+        const response = await api.post('finance/withdraw/', payload);
+        return response.data;
+    },
+
+    /**
+     * Retrieve wallet ledger / balance info via GET /wallet/ (fallback: /finance/withdraw/)
+     */
+    getWallet: async () => {
+        try {
+            const response = await api.get('wallet/');
+            return response.data;
+        } catch (err) {
+            if (err.response?.status === 404) {
+                const fallbackRes = await api.get('finance/withdraw/');
                 return fallbackRes.data;
             }
             throw err;
@@ -251,38 +435,10 @@ export const pickups = {
     },
 };
 
-export const collectors = {
-    /**
-     * Register collector operator profile via POST /collectors/ or /collector/register/
-     * @param {Object} data - Collector payload
-     */
-    register: async (data) => {
-        try {
-            const response = await api.post('collectors/', data);
-            return response.data;
-        } catch (err) {
-            console.warn('[Collector API] Backend registration fallback to local state:', err?.message || err);
-            return { success: true, localOnly: true, data };
-        }
-    },
-};
-
-export const waitlist = {
-    /**
-     * Register a user / address on neighborhood expansion waitlist via POST /waitlist/
-     * @param {Object} data - { phone, area_name, full_name, ... }
-     */
-    registerWaitlist: async (data) => {
-        const response = await api.post('waitlist/', data);
-        return response.data;
-    },
-};
-
 export const payments = {
     /**
-     * Initialize payment with backend (Paystack initialization) via POST /payments/initialize/
-     * Ensures Authorization header: Bearer ${token} is explicitly provided
-     * @param {Object} data - { amount: in kobo, plan_type: "monthly", ... }
+     * Initialize payment with backend via POST /api/v1/payments/initialize/
+     * @param {Object} data - { email, amount, ... }
      * @param {string} [tokenOverride] - Optional JWT token
      */
     initializePayment: async (data, tokenOverride = null) => {
@@ -301,7 +457,7 @@ export const payments = {
     },
 
     /**
-     * Verify completed Paystack payment by transaction reference via POST /payments/verify/
+     * Verify completed Paystack payment by transaction reference via POST /api/v1/payments/verify/
      * @param {string|Object} reference - Transaction reference string or { reference }
      * @param {string} [tokenOverride] - Optional JWT token
      */
@@ -318,18 +474,109 @@ export const payments = {
     },
 
     /**
-     * Retrieve wallet ledger / balance info via GET /wallet/ (or GET /finance/withdraw/)
+     * Retrieve wallet ledger via payments alias
      */
     getWallet: async () => {
+        return finance.getWallet();
+    },
+};
+
+// ========================================================
+// 5. Growth, Waitlist & Organization (/waitlist/ & /organization/)
+// ========================================================
+export const waitlist = {
+    /**
+     * Register a user / address on neighborhood expansion waitlist via POST /api/v1/waitlist/
+     * @param {Object} data - { email, cluster_id, location, ... }
+     */
+    registerWaitlist: async (data) => {
+        const payload = {
+            email: data.email || data.phone || 'waitlist@kole.com.ng',
+            cluster_id: data.cluster_id || data.cluster || data.area_name || data.area || 'Oke-Fia',
+            location: data.location || data.area_name || data.address || data.cluster || 'Oke-Fia',
+            ...data,
+        };
+        const response = await api.post('waitlist/', payload);
+        return response.data;
+    },
+};
+
+export const organization = {
+    /**
+     * Retrieve staging bay configuration via GET /api/v1/organization/staging-config/
+     */
+    getStagingConfig: async () => {
+        const response = await api.get('organization/staging-config/');
+        return response.data;
+    },
+
+    /**
+     * Configure staging bays via POST /api/v1/organization/staging-config/
+     * @param {Object} data - Staging bay config payload
+     */
+    saveStagingConfig: async (data) => {
+        const response = await api.post('organization/staging-config/', data);
+        return response.data;
+    },
+
+    /**
+     * Manage evacuation schedules via GET /api/v1/organization/schedule/
+     */
+    getSchedules: async () => {
+        const response = await api.get('organization/schedule/');
+        return response.data;
+    },
+
+    /**
+     * Save evacuation schedule via POST /api/v1/organization/schedule/
+     * @param {Object} data - Schedule payload
+     */
+    saveSchedule: async (data) => {
+        const response = await api.post('organization/schedule/', data);
+        return response.data;
+    },
+};
+
+// ========================================================
+// 6. Admin Dashboard APIs (/admin/)
+// ========================================================
+export const admin = {
+    /**
+     * Geospatial waste accumulation heatmaps via GET /api/v1/admin/heatmap/
+     */
+    getHeatmap: async () => {
+        const response = await api.get('admin/heatmap/');
+        return response.data;
+    },
+
+    /**
+     * Summary metrics and platform stats via GET /api/v1/admin/metrics/
+     */
+    getMetrics: async () => {
+        const response = await api.get('admin/metrics/');
+        return response.data;
+    },
+
+    /**
+     * Automated split payouts and financials via GET /api/v1/admin/settlements/
+     */
+    getSettlements: async () => {
+        const response = await api.get('admin/settlements/');
+        return response.data;
+    },
+};
+
+// ========================================================
+// Backward Compatibility / Helpers
+// ========================================================
+export const collectors = {
+    register: async (data) => {
         try {
-            const response = await api.get('wallet/');
+            const response = await api.post('collectors/', data);
             return response.data;
         } catch (err) {
-            if (err.response?.status === 404) {
-                const fallbackRes = await api.get('finance/withdraw/');
-                return fallbackRes.data;
-            }
-            throw err;
+            console.warn('[Collector API] Backend registration fallback to local state:', err?.message || err);
+            return { success: true, localOnly: true, data };
         }
     },
 };

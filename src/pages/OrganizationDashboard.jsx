@@ -1,8 +1,11 @@
 // src/pages/OrganizationDashboard.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
+import { organization } from '../services/api';
 import HeaderBar from '../components/layout/HeaderBar';
 import Button from '../components/common/Button';
+import OrganizationCheckout, { calculateOrganizationFees } from './OrganizationCheckout';
+import InternalEnvironmentalServiceLog from '../components/organization/InternalEnvironmentalServiceLog';
 import {
     Building2,
     Calendar,
@@ -22,7 +25,8 @@ import {
     HeartPulse,
     AlertCircle,
     Sparkles,
-    Check
+    Check,
+    Lock
 } from 'lucide-react';
 
 export const CATEGORY_TIER_CONFIG = {
@@ -150,11 +154,64 @@ export default function OrganizationDashboard({ onOpenSettings }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
+    // Checkout & Audit Log States
+    const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+    const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+    const [contractStatus, setContractStatus] = useState(() => user?.commercialContract || null);
+
+    // Sync staging config and schedule from backend API on mount
+    useEffect(() => {
+        let isMounted = true;
+        const loadOrgBackendData = async () => {
+            try {
+                const staging = await organization.getStagingConfig();
+                if (isMounted && staging) {
+                    if (staging.notes || staging.staging_bay_notes) {
+                        setStagingBayNotes(staging.notes || staging.staging_bay_notes);
+                    }
+                }
+            } catch (e) {
+                console.warn('[OrganizationDashboard] getStagingConfig notice (offline fallback):', e);
+            }
+
+            try {
+                const sched = await organization.getSchedules();
+                if (isMounted && sched) {
+                    if (sched.frequency) setPickupFrequency(sched.frequency);
+                    if (sched.time_slot) setPickupTimeSlot(sched.time_slot);
+                    if (Array.isArray(sched.waste_streams) && sched.waste_streams.length > 0) {
+                        setWasteTypes(sched.waste_streams);
+                    }
+                }
+            } catch (e) {
+                console.warn('[OrganizationDashboard] getSchedules notice (offline fallback):', e);
+            }
+        };
+        loadOrgBackendData();
+        return () => { isMounted = false; };
+    }, []);
+
     // Re-synchronize when category changes
     useEffect(() => {
         setWasteTypes(activeConfig.defaultStreams);
         setPickupFrequency(activeConfig.defaultFrequency);
     }, [category]);
+
+    // Check for #checkout or /organization/checkout routing
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            if (window.location.hash === '#checkout' || window.location.pathname.includes('/organization/checkout')) {
+                setIsCheckoutOpen(true);
+            }
+        }
+    }, []);
+
+    // Sync contract status from user if updated elsewhere
+    useEffect(() => {
+        if (user?.commercialContract) {
+            setContractStatus(user.commercialContract);
+        }
+    }, [user?.commercialContract]);
 
     const toggleWasteCategory = (stream) => {
         if (wasteTypes.includes(stream)) {
@@ -168,36 +225,37 @@ export default function OrganizationDashboard({ onOpenSettings }) {
     const currentFrequencyObj = activeConfig.allowedFrequencies.find((f) => f.id === pickupFrequency) || activeConfig.allowedFrequencies[0];
     const currentPriceLabel = currentFrequencyObj?.price || activeConfig.monthlyPriceFormatted;
 
-    const handleScheduleBulkEvacuation = (e) => {
+    // Trigger Organization Checkout Modal & persist configuration to backend
+    const handleScheduleBulkEvacuation = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-
-        setTimeout(() => {
-            const bulkPayload = {
-                requestId: `#KL-ORG-${Math.floor(100000 + Math.random() * 900000)}`,
-                title: `${category} Bulk Evacuation (${currentFrequencyObj.label})`,
-                amount: currentPriceLabel,
+        try {
+            await organization.saveStagingConfig({
+                notes: stagingBayNotes,
                 category: category,
-                tierName: activeConfig.tierName,
-                status: 'SCHEDULED_EVACUATION',
-                address: user?.address || 'Plot 4, Station Road, Oke-Fia, Osogbo',
-                area: user?.Area || 'Oke-Fia',
-                wasteTypes: wasteTypes,
-                stagingBay: stagingBayNotes,
-                timeSlot: pickupTimeSlot,
+            });
+        } catch (err) {
+            console.warn('[OrganizationDashboard] saveStagingConfig notice (offline fallback):', err);
+        }
+
+        try {
+            await organization.saveSchedule({
                 frequency: pickupFrequency,
-                createdAt: new Date().toISOString()
-            };
+                time_slot: pickupTimeSlot,
+                waste_streams: wasteTypes,
+                category: category,
+            });
+        } catch (err) {
+            console.warn('[OrganizationDashboard] saveSchedule notice (offline fallback):', err);
+        }
+        setIsSubmitting(false);
+        setIsCheckoutOpen(true);
+    };
 
-            if (addActiveRequest) {
-                addActiveRequest(bulkPayload);
-            }
-
-            setIsSubmitting(false);
-            setSuccessMessage(`Bulk waste schedule logged! Tailored ${activeConfig.tierName} dispatch transmission complete (${currentPriceLabel}).`);
-
-            setTimeout(() => setSuccessMessage(''), 4500);
-        }, 1000);
+    const handlePaymentVerified = (contractRecord) => {
+        setContractStatus(contractRecord);
+        setSuccessMessage("Payment verified! Monthly schedule locked.");
+        setTimeout(() => setSuccessMessage(''), 5000);
     };
 
     return (
@@ -245,9 +303,15 @@ export default function OrganizationDashboard({ onOpenSettings }) {
                     <span className="flex items-center gap-1">
                         <MapPin size={12} className="text-emerald-400" /> {user?.Area || 'Oke-Fia'} Cluster
                     </span>
-                    <span className="bg-emerald-500/20 text-emerald-300 font-black px-2.5 py-0.5 rounded-md border border-emerald-500/30">
-                        {activeConfig.monthlyPriceFormatted} Tier
-                    </span>
+                    {contractStatus?.isPaid ? (
+                        <span className="bg-emerald-500/20 text-emerald-300 font-black px-2.5 py-0.5 rounded-md border border-emerald-500/30 flex items-center gap-1">
+                            <CheckCircle2 size={11} className="text-emerald-400" /> Active Schedule Locked & Paid
+                        </span>
+                    ) : (
+                        <span className="bg-emerald-500/20 text-emerald-300 font-black px-2.5 py-0.5 rounded-md border border-emerald-500/30">
+                            {activeConfig.monthlyPriceFormatted} Tier
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -401,22 +465,93 @@ export default function OrganizationDashboard({ onOpenSettings }) {
             </div>
 
             {/* 5. Environmental Compliance & Audit Download */}
-            <div className="bg-emerald-950 text-white rounded-3xl p-4 border border-emerald-900 flex items-center justify-between gap-3 shadow-sm">
+            <div className={`rounded-3xl p-4 border flex items-center justify-between gap-3 shadow-sm transition-all ${
+                contractStatus?.isPaid
+                    ? 'bg-emerald-950 text-white border-emerald-800'
+                    : 'bg-slate-900 text-white border-slate-800'
+            }`}>
                 <div className="space-y-1">
-                    <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-900 border border-emerald-700 px-2 py-0.5 rounded">
-                        {activeConfig.complianceTag}
-                    </span>
-                    <h4 className="font-black text-xs text-white">Monthly Verified Audit Certificate</h4>
-                    <p className="text-[10px] text-slate-300 font-medium">Download verified compliance certificate for {user?.orgName || 'facility'}.</p>
+                    {contractStatus?.isPaid ? (
+                        <span className="text-[9px] font-black uppercase text-emerald-300 bg-emerald-900 border border-emerald-600 px-2 py-0.5 rounded inline-flex items-center gap-1">
+                            <CheckCircle2 size={11} className="text-emerald-400" />
+                            Verified Compliance Active
+                        </span>
+                    ) : (
+                        <span className="text-[9px] font-bold uppercase text-amber-400 bg-amber-950/80 border border-amber-800/80 px-2 py-0.5 rounded inline-flex items-center gap-1">
+                            <Lock size={10} /> Subscription Required
+                        </span>
+                    )}
+                    <h4 className="font-black text-xs text-white">
+                        {contractStatus?.isPaid ? 'Internal Environmental Service Log' : 'Monthly Verified Audit Certificate'}
+                    </h4>
+                    <p className="text-[10px] text-slate-300 font-medium">
+                        {contractStatus?.isPaid
+                            ? `Compliant with KóLẹ̀ T&C Section 1.6 — Ref #${contractStatus.reference}`
+                            : `Complete monthly schedule payment to unlock the certified environmental clearance audit.`
+                        }
+                    </p>
                 </div>
 
-                <button
-                    onClick={() => alert(`Downloading Verified Compliance Certificate for ${category} (${user?.orgName || 'Facility'})...`)}
-                    className="p-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-2xl shrink-0 cursor-pointer shadow-md flex items-center gap-1.5 text-[11px]"
-                >
-                    <Download size={15} /> Audit PDF
-                </button>
+                {contractStatus?.isPaid ? (
+                    <button
+                        type="button"
+                        onClick={() => setIsAuditModalOpen(true)}
+                        className="p-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-2xl shrink-0 cursor-pointer shadow-md flex items-center gap-1.5 text-[11px] transition-colors"
+                    >
+                        <Download size={15} /> Audit PDF
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => setIsCheckoutOpen(true)}
+                        className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-2xl shrink-0 cursor-pointer shadow-md flex items-center gap-1.5 text-[11px] border border-slate-700 transition-colors"
+                    >
+                        <Lock size={15} className="text-amber-400" /> Unlock Audit PDF
+                    </button>
+                )}
             </div>
+
+            {/* CHECKOUT MODAL / POPUP */}
+            <OrganizationCheckout
+                isOpen={isCheckoutOpen}
+                onClose={() => setIsCheckoutOpen(false)}
+                checkoutData={{
+                    facilityName: user?.orgName || user?.fullName || 'Oroki Innovation Hub',
+                    category: category,
+                    cluster: `${user?.Area || user?.area || 'Oke-Fia'} Zone`,
+                    basePrice: activeConfig.monthlyPrice,
+                    planTitle: `${activeConfig.tierName} (${currentFrequencyObj.label})`,
+                    wasteTypes: wasteTypes,
+                    stagingBayNotes: stagingBayNotes,
+                    frequency: pickupFrequency,
+                    timeSlot: pickupTimeSlot,
+                    officerName: user?.officerInCharge || 'Mr. Lukman Adeoti',
+                    email: user?.email || 'operations@kole.ng',
+                    phoneNumber: user?.phoneNumber || '08012345678',
+                }}
+                onSuccess={handlePaymentVerified}
+            />
+
+            {/* INTERNAL ENVIRONMENTAL SERVICE LOG & CLEARANCE AUDIT MODAL */}
+            <InternalEnvironmentalServiceLog
+                isOpen={isAuditModalOpen}
+                onClose={() => setIsAuditModalOpen(false)}
+                contractData={contractStatus || {
+                    facilityName: user?.orgName || user?.fullName || 'Oroki Innovation Hub',
+                    category: category,
+                    cluster: `${user?.Area || user?.area || 'Oke-Fia'} Zone`,
+                    reference: `KL-ORG-${Date.now()}`,
+                    paymentRef: `KL-ORG-${Date.now()}`,
+                    amountFormatted: '₦15,584',
+                    officerName: user?.officerInCharge || 'Mr. Lukman Adeoti',
+                    assignedCollector: 'Osogbo Central Cleaners Ltd',
+                    wasteTypes: wasteTypes,
+                    stagingBay: stagingBayNotes,
+                    frequency: currentFrequencyObj.label,
+                    timeSlot: pickupTimeSlot,
+                    paidAt: new Date().toISOString(),
+                }}
+            />
         </div>
     );
 }
