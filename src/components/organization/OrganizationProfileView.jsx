@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import Button from '../common/Button';
 import AreaSelector from '../common/AreaSelector';
+import { COMMERCIAL_CATEGORIES } from './OrganizationSignupForm';
 import {
     Building2,
     MapPin,
@@ -100,11 +101,11 @@ export default function OrganizationProfileView() {
                             onChange={(e) => setOrgData({ ...orgData, category: e.target.value })}
                             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-brand-primary"
                         >
-                            <option value="Schools & Educational">Schools & Educational</option>
-                            <option value="Restaurants & Food Service">Restaurants & Food Service</option>
-                            <option value="Corporate Office / Tech Hub">Corporate Office / Tech Hub</option>
-                            <option value="Retail / Plaza">Retail / Plaza</option>
-                            <option value="Healthcare / Medical">Healthcare / Medical</option>
+                            {COMMERCIAL_CATEGORIES.map((cat) => (
+                                <option key={cat} value={cat}>
+                                    {cat}
+                                </option>
+                            ))}
                         </select>
                     </div>
                 </div>

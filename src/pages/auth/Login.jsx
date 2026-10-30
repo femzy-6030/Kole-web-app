@@ -247,14 +247,34 @@ export default function Login({ onSwitchToRegister, onForgotPassword }) {
                 <GoogleAuthButton role={role} isSignUp={false} />
 
                 {/* Switch to Register */}
-                <div className="text-center text-xs text-slate-500 font-medium pt-1">
-                    Don't have an account?{' '}
-                    <button
-                        onClick={onSwitchToRegister}
-                        className="text-brand-primary font-bold hover:underline cursor-pointer"
-                    >
-                        Register now
-                    </button>
+                <div className="text-center text-xs text-slate-500 font-medium pt-1 space-y-2">
+                    <div>
+                        Don't have an account?{' '}
+                        <button
+                            onClick={onSwitchToRegister}
+                            className="text-brand-primary font-bold hover:underline cursor-pointer"
+                        >
+                            Register now
+                        </button>
+                    </div>
+
+                    {role === 'organization' && (
+                        <div className="pt-1">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (typeof window !== 'undefined') {
+                                        window.history.pushState({}, '', '/organization/signup');
+                                        window.dispatchEvent(new Event('popstate'));
+                                    }
+                                }}
+                                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl cursor-pointer inline-flex items-center gap-1.5"
+                            >
+                                <Building2 size={13} />
+                                <span>Commercial Multi-Frequency Setup (1x – 5x/wk) →</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
             </div>

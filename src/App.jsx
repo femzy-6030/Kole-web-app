@@ -13,6 +13,7 @@ import CollectorOnboarding from './pages/collector/CollectorOnboarding';
 import CollectorDispatchQueue from './components/collector/CollectorDispatchQueue';
 import CollectorPortal from './pages/collector/CollectorPortal';
 import CollectorLogin from './pages/collector/CollectorLogin';
+import ProtectedCollectorRoute from './components/collector/ProtectedCollectorRoute';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AreaSelector from "./components/common/AreaSelector";
 import { AnnouncementModal } from './components/common/AwarenessCarousel';
@@ -25,6 +26,7 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import GoogleAuthButton from './components/GoogleAuthButton';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import UpdatePassword from './pages/auth/UpdatePassword';
+import OrganizationSignup from './pages/organization/Signup';
 import {
     User,
     Building2,
@@ -96,7 +98,20 @@ export default function App() {
         );
     };
 
+    const checkIsOrgSignupRoute = () => {
+        if (typeof window === 'undefined') return false;
+        const path = window.location.pathname.toLowerCase();
+        const hash = window.location.hash.toLowerCase();
+        return (
+            path.includes('/organization/signup') ||
+            hash.includes('organization/signup') ||
+            path.includes('/org-signup') ||
+            hash.includes('org-signup')
+        );
+    };
+
     const [isCollectorRoute, setIsCollectorRoute] = useState(checkIsCollectorRoute);
+    const [isOrgSignupRoute, setIsOrgSignupRoute] = useState(checkIsOrgSignupRoute);
 
     // Check both localStorage and sessionStorage on mount for Collector & General Session Persistence
     useEffect(() => {
@@ -111,9 +126,12 @@ export default function App() {
         }
     }, []);
 
-    // Auth View State: 'login' | 'register' | 'collector-onboard' | 'forgot-password' | 'update-password'
+    // Auth View State: 'login' | 'register' | 'collector-onboard' | 'forgot-password' | 'update-password' | 'org-signup'
     const [authMode, setAuthMode] = useState(() => {
         if (typeof window !== 'undefined') {
+            if (checkIsOrgSignupRoute()) {
+                return 'org-signup';
+            }
             if (checkIsUpdatePasswordRoute()) {
                 return 'update-password';
             }
@@ -130,7 +148,12 @@ export default function App() {
             setIsPaymentSuccessRoute(checkIsPaymentSuccessRoute());
             const isCol = checkIsCollectorRoute();
             setIsCollectorRoute(isCol);
-            if (checkIsUpdatePasswordRoute()) {
+            const isOrg = checkIsOrgSignupRoute();
+            setIsOrgSignupRoute(isOrg);
+
+            if (isOrg) {
+                setAuthMode('org-signup');
+            } else if (checkIsUpdatePasswordRoute()) {
                 setAuthMode('update-password');
             } else if (checkIsCollectorOnboardRoute()) {
                 setAuthMode('collector-onboard');
@@ -640,6 +663,32 @@ export default function App() {
             );
         }
 
+        // 2D. COMMERCIAL ORGANIZATION TIERED SIGNUP VIEW
+        if (!isAuthenticated && (isOrgSignupRoute || authMode === 'org-signup')) {
+            return (
+                <OrganizationSignup
+                    onBackToHome={() => {
+                        setIsOrgSignupRoute(false);
+                        setAuthMode('login');
+                        if (typeof window !== 'undefined') {
+                            window.history.pushState({}, '', '/');
+                        }
+                    }}
+                    onSwitchToLogin={() => {
+                        setIsOrgSignupRoute(false);
+                        setAuthMode('login');
+                        if (typeof window !== 'undefined') {
+                            window.history.pushState({}, '', '/');
+                        }
+                    }}
+                    onSignupSuccess={() => {
+                        setIsOrgSignupRoute(false);
+                        setAuthMode('login');
+                    }}
+                />
+            );
+        }
+
         // 3. PUBLIC AUTHENTICATION / REGISTRATION VIEW (Strictly Customer & Org)
         if (!isAuthenticated) {
             return (
@@ -1008,6 +1057,19 @@ export default function App() {
                                     </>
                                 )}
                             </div>
+
+                            {selectedRole === 'organization' && (
+                                <div className="pt-2 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        onClick={() => setAuthMode('org-signup')}
+                                        className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl cursor-pointer transition-colors inline-flex items-center gap-1.5"
+                                    >
+                                        <Building2 size={13} />
+                                        <span>Commercial Multi-Frequency Setup (1x – 5x/wk) →</span>
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                     </div>
@@ -1086,7 +1148,11 @@ export default function App() {
 
         // 6. COLLECTOR ROLE - FULL MULTI-PAGE DISPATCH OPERATIONS PORTAL
         if (role === 'collector') {
-            return <CollectorPortal />;
+            return (
+                <ProtectedCollectorRoute fallbackUrl="/collector-onboard" loginUrl="/collector">
+                    <CollectorPortal />
+                </ProtectedCollectorRoute>
+            );
         }
 
         // 7. CUSTOMER ROLE
