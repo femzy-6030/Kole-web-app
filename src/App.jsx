@@ -23,6 +23,8 @@ import WaitlistCaptureModal from './components/common/WaitlistCaptureModal';
 import Button from './components/common/Button';
 import PaymentSuccess from './pages/PaymentSuccess';
 import GoogleAuthButton from './components/GoogleAuthButton';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import UpdatePassword from './pages/auth/UpdatePassword';
 import {
     User,
     Building2,
@@ -83,6 +85,17 @@ export default function App() {
         return path.includes('/collector-onboard') || hash.includes('#collector-onboard');
     };
 
+    const checkIsUpdatePasswordRoute = () => {
+        if (typeof window === 'undefined') return false;
+        const path = window.location.pathname.toLowerCase();
+        const hash = window.location.hash.toLowerCase();
+        return (
+            path.includes('/update-password') ||
+            hash.includes('update-password') ||
+            hash.includes('type=recovery')
+        );
+    };
+
     const [isCollectorRoute, setIsCollectorRoute] = useState(checkIsCollectorRoute);
 
     // Check both localStorage and sessionStorage on mount for Collector & General Session Persistence
@@ -98,10 +111,15 @@ export default function App() {
         }
     }, []);
 
-    // Auth View State: 'login' | 'register' | 'collector-onboard'
+    // Auth View State: 'login' | 'register' | 'collector-onboard' | 'forgot-password' | 'update-password'
     const [authMode, setAuthMode] = useState(() => {
-        if (typeof window !== 'undefined' && checkIsCollectorOnboardRoute()) {
-            return 'collector-onboard';
+        if (typeof window !== 'undefined') {
+            if (checkIsUpdatePasswordRoute()) {
+                return 'update-password';
+            }
+            if (checkIsCollectorOnboardRoute()) {
+                return 'collector-onboard';
+            }
         }
         return 'login';
     });
@@ -112,7 +130,9 @@ export default function App() {
             setIsPaymentSuccessRoute(checkIsPaymentSuccessRoute());
             const isCol = checkIsCollectorRoute();
             setIsCollectorRoute(isCol);
-            if (checkIsCollectorOnboardRoute()) {
+            if (checkIsUpdatePasswordRoute()) {
+                setAuthMode('update-password');
+            } else if (checkIsCollectorOnboardRoute()) {
                 setAuthMode('collector-onboard');
             } else if (isCol && authMode === 'collector-onboard' && !window.location.pathname.includes('/collector-onboard')) {
                 setAuthMode('login');
@@ -586,6 +606,40 @@ export default function App() {
             );
         }
 
+        // 2B. FORGOT PASSWORD VIEW (Supabase Password Recovery)
+        if (!isAuthenticated && authMode === 'forgot-password') {
+            return (
+                <ForgotPassword
+                    onBackToLogin={() => {
+                        setAuthMode('login');
+                        if (typeof window !== 'undefined') {
+                            window.history.pushState({}, '', '/');
+                        }
+                    }}
+                />
+            );
+        }
+
+        // 2C. UPDATE PASSWORD VIEW (Supabase Password Reset Callback)
+        if (!isAuthenticated && authMode === 'update-password') {
+            return (
+                <UpdatePassword
+                    onPasswordUpdated={() => {
+                        setAuthMode('login');
+                        if (typeof window !== 'undefined') {
+                            window.history.pushState({}, '', '/');
+                        }
+                    }}
+                    onBackToLogin={() => {
+                        setAuthMode('login');
+                        if (typeof window !== 'undefined') {
+                            window.history.pushState({}, '', '/');
+                        }
+                    }}
+                />
+            );
+        }
+
         // 3. PUBLIC AUTHENTICATION / REGISTRATION VIEW (Strictly Customer & Org)
         if (!isAuthenticated) {
             return (
@@ -893,7 +947,11 @@ export default function App() {
                                 </label>
 
                                 {authMode === 'login' && (
-                                    <button type="button" className="text-brand-primary font-bold hover:underline">
+                                    <button
+                                        type="button"
+                                        onClick={() => setAuthMode('forgot-password')}
+                                        className="text-brand-primary font-bold hover:underline cursor-pointer"
+                                    >
                                         Forgot Password?
                                     </button>
                                 )}

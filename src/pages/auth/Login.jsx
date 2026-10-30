@@ -7,7 +7,7 @@ import Button from '../../components/common/Button';
 import GoogleAuthButton from '../../components/GoogleAuthButton';
 import { User, Building2, Lock, AlertCircle, Eye, EyeOff, Mail } from 'lucide-react';
 
-export default function Login({ onSwitchToRegister }) {
+export default function Login({ onSwitchToRegister, onForgotPassword }) {
     const { login } = useAuthStore();
 
     const [role, setRole] = useState('customer'); // 'customer' | 'organization'
@@ -220,7 +220,8 @@ export default function Login({ onSwitchToRegister }) {
 
                         <button
                             type="button"
-                            className="text-brand-primary font-bold hover:underline"
+                            onClick={onForgotPassword}
+                            className="text-brand-primary font-bold hover:underline cursor-pointer"
                         >
                             Forgot Password?
                         </button>
