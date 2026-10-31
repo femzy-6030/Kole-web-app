@@ -1149,7 +1149,7 @@ export default function App() {
         // 6. COLLECTOR ROLE - FULL MULTI-PAGE DISPATCH OPERATIONS PORTAL
         if (role === 'collector') {
             return (
-                <ProtectedCollectorRoute fallbackUrl="/collector-onboard" loginUrl="/collector">
+                <ProtectedCollectorRoute fallbackUrl="/collector-onboard" loginUrl="/login">
                     <CollectorPortal />
                 </ProtectedCollectorRoute>
             );
