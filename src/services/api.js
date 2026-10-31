@@ -100,8 +100,17 @@ api.interceptors.response.use(
 
         // If 401 Unauthorized occurs
         if (error.response?.status === 401) {
-            // For login or register requests, do not clear store or redirect; let the form handle the error
+            // 1. For login or register requests, do not clear store or redirect; let the form handle the error
             if (requestUrl.includes('auth/login') || requestUrl.includes('auth/register')) {
+                return Promise.reject(error);
+            }
+
+            const state = useAuthStore.getState();
+            const token = getAccessToken() || '';
+
+            // 2. Prevent background API calls (e.g., pickups, dispatch) from logging out collectors in operator mode
+            if (state.role === 'collector' || (typeof token === 'string' && token.startsWith('kole-operator'))) {
+                console.warn('[API Interceptor] 401 Unauthorized on collector operator request:', requestUrl, '- Preserving operator session and using offline fallback.');
                 return Promise.reject(error);
             }
 

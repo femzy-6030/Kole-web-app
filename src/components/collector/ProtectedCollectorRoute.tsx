@@ -32,7 +32,25 @@ export default function ProtectedCollectorRoute({
 
     const verifyCollector = async () => {
       try {
-        // 1. Query Supabase authentication session
+        // 1. Fast path: check active local operator session (Zustand & token storage)
+        const authState = useAuthStore.getState();
+        const localToken = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
+        const sessionToken = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('access_token') : null;
+        const hasActiveToken = Boolean(localToken || sessionToken);
+
+        const isLocalCollector =
+          (authState.isAuthenticated && (authState.role === 'collector' || authState.user?.role === 'collector')) ||
+          (hasActiveToken && (authState.role === 'collector' || (typeof localToken === 'string' && localToken.startsWith('kole-operator'))));
+
+        if (isLocalCollector) {
+          if (isMounted) {
+            setIsCollector(true);
+            setLoading(false);
+          }
+          return;
+        }
+
+        // 2. Query Supabase authentication session
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         const session = sessionData?.session;
 
@@ -53,24 +71,6 @@ export default function ProtectedCollectorRoute({
             }
             return;
           }
-        }
-
-        // 2. Fallback check for local operator session (Zustand & token storage)
-        const authState = useAuthStore.getState();
-        const localToken = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
-        const sessionToken = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('access_token') : null;
-        const hasActiveToken = Boolean(localToken || sessionToken);
-
-        const isLocalCollector =
-          (authState.isAuthenticated && (authState.role === 'collector' || authState.user?.role === 'collector')) ||
-          (hasActiveToken && authState.role === 'collector');
-
-        if (isLocalCollector) {
-          if (isMounted) {
-            setIsCollector(true);
-            setLoading(false);
-          }
-          return;
         }
 
         // 3. Unauthenticated session: route cleanly to login

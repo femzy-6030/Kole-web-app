@@ -71,11 +71,13 @@ export default function CollectorLogin({ onLoginSuccess, onNavigateToOnboarding,
             login(collectorData, 'collector', rememberMe, operatorTokens);
             setIsLoading(false);
 
-            if (onLoginSuccess) {
-                onLoginSuccess(collectorData);
-            } else if (typeof window !== 'undefined') {
+            if (typeof window !== 'undefined') {
                 window.history.pushState({}, '', '/collector/dashboard');
                 window.dispatchEvent(new Event('popstate'));
+            }
+
+            if (onLoginSuccess) {
+                onLoginSuccess(collectorData);
             }
         }, 500);
     };
