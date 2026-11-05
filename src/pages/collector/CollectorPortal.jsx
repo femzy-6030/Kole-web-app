@@ -1,9 +1,11 @@
 // src/pages/collector/CollectorPortal.jsx
 import React, { useState, useEffect } from 'react';
-import CollectorLayout from '../../layouts/CollectorLayout';
+import CollectorSidebarLayout from '../../layouts/CollectorSidebarLayout';
 import CollectorRequestsView from './CollectorRequestsView';
 import CollectorProfilesView from './CollectorProfilesView';
 import CollectorAssistancesView from './CollectorAssistancesView';
+import CollectorClustersView from './CollectorClustersView';
+import CollectorCustomerLedger from '../../components/collector/CollectorCustomerLedger';
 
 export default function CollectorPortal({ initialSection = 'requests' }) {
     // Detect active section from URL path or hash
@@ -14,6 +16,8 @@ export default function CollectorPortal({ initialSection = 'requests' }) {
 
         if (path.includes('profile') || hash.includes('profile')) return 'profiles';
         if (path.includes('assistance') || hash.includes('assistance') || path.includes('support')) return 'assistances';
+        if (path.includes('ledger') || hash.includes('ledger') || path.includes('customer') || hash.includes('debtor')) return 'ledger';
+        if (path.includes('zone') || hash.includes('zone') || path.includes('cluster')) return 'zones';
         return 'requests';
     };
 
@@ -39,10 +43,12 @@ export default function CollectorPortal({ initialSection = 'requests' }) {
     };
 
     return (
-        <CollectorLayout activeSection={activeSection} onNavigate={handleNavigate}>
+        <CollectorSidebarLayout activeSection={activeSection} onNavigate={handleNavigate}>
             {activeSection === 'requests' && <CollectorRequestsView />}
+            {activeSection === 'ledger' && <CollectorCustomerLedger />}
+            {activeSection === 'zones' && <CollectorClustersView />}
             {activeSection === 'profiles' && <CollectorProfilesView />}
             {activeSection === 'assistances' && <CollectorAssistancesView />}
-        </CollectorLayout>
+        </CollectorSidebarLayout>
     );
 }

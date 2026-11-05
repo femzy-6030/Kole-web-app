@@ -11,16 +11,54 @@ const isConfigured = Boolean(
     !supabaseUrl.includes('placeholder')
 );
 
-// Chainable mock builder for unconfigured environments
+// Chainable mock builder for unconfigured environments with local storage persistence
 const createQueryBuilder = (tableName = '') => {
+    let filterField = null;
+    let filterValue = null;
+
+    const getStoredRows = () => {
+        try {
+            if (typeof localStorage !== 'undefined') {
+                const raw = localStorage.getItem(`kole-mock-db-${tableName}`);
+                if (raw) return JSON.parse(raw);
+            }
+        } catch {
+            // Ignore parse errors
+        }
+        return [];
+    };
+
+    const saveRows = (rows) => {
+        try {
+            if (typeof localStorage !== 'undefined') {
+                const current = getStoredRows();
+                const toAdd = Array.isArray(rows) ? rows : [rows];
+                const updated = [...current, ...toAdd];
+                localStorage.setItem(`kole-mock-db-${tableName}`, JSON.stringify(updated));
+            }
+        } catch {
+            // Ignore storage errors
+        }
+    };
+
     const builder = {
         _table: tableName,
         select: () => builder,
-        insert: async (rows) => ({ data: Array.isArray(rows) ? rows : [rows], error: null }),
+        insert: async (rows) => {
+            saveRows(rows);
+            return { data: Array.isArray(rows) ? rows : [rows], error: null };
+        },
         update: () => builder,
-        upsert: async (rows) => ({ data: Array.isArray(rows) ? rows : [rows], error: null }),
+        upsert: async (rows) => {
+            saveRows(rows);
+            return { data: Array.isArray(rows) ? rows : [rows], error: null };
+        },
         delete: () => builder,
-        eq: () => builder,
+        eq: (field, val) => {
+            filterField = field;
+            filterValue = val;
+            return builder;
+        },
         neq: () => builder,
         gt: () => builder,
         gte: () => builder,
@@ -35,10 +73,31 @@ const createQueryBuilder = (tableName = '') => {
         order: () => builder,
         limit: () => builder,
         range: () => builder,
-        single: async () => ({ data: null, error: null }),
-        maybeSingle: async () => ({ data: null, error: null }),
+        single: async () => {
+            const rows = getStoredRows();
+            if (filterField && filterValue !== undefined) {
+                const found = rows.find((r) => r[filterField] === filterValue);
+                return { data: found || null, error: null };
+            }
+            return { data: rows[0] || null, error: null };
+        },
+        maybeSingle: async () => {
+            const rows = getStoredRows();
+            if (filterField && filterValue !== undefined) {
+                const found = rows.find((r) => r[filterField] === filterValue);
+                return { data: found || null, error: null };
+            }
+            return { data: rows[0] || null, error: null };
+        },
         // Thenable support so "await supabase.from(...).select(...)" resolves safely
-        then: (resolve) => resolve({ data: [], error: null }),
+        then(onfulfilled, onrejected) {
+            const rows = getStoredRows();
+            let result = { data: rows, error: null };
+            if (filterField && filterValue !== undefined) {
+                result = { data: rows.filter((r) => r[filterField] === filterValue), error: null };
+            }
+            return Promise.resolve(result).then(onfulfilled, onrejected);
+        },
     };
     return builder;
 };
