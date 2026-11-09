@@ -12,7 +12,7 @@ import OrganizationProfileView from './components/organization/OrganizationProfi
 import CollectorOnboarding from './pages/collector/CollectorOnboarding';
 import CollectorDispatchQueue from './components/collector/CollectorDispatchQueue';
 import CollectorPortal from './pages/collector/CollectorPortal';
-import CollectorLogin from './pages/collector/CollectorLogin';
+import CollectorLogin from './pages/collector/CollectorLogin.tsx';
 import ProtectedCollectorRoute from './components/collector/ProtectedCollectorRoute';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AreaSelector from "./components/common/AreaSelector";
