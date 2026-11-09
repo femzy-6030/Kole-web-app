@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { payments, getAuthToken } from '../services/api';
 import Button from './common/Button';
+import { calculateCheckoutTotal, formatNaira } from '../utils/feeCalculator';
 import {
     CreditCard,
     ShieldCheck,
@@ -708,6 +709,30 @@ export default function PaymentPage({ checkoutData, onPaymentSuccess, onBack }) 
                                 <span className="font-medium text-slate-700">4 Consecutive Weeks (₦{selectedWeeklyTotal.toLocaleString()} × 4)</span>
                             </div>
                         )}
+
+                        {/* User-Bearing Pricing & Transparent Platform Fee Breakdown */}
+                        {(() => {
+                            const feeCalc = calculateCheckoutTotal(
+                                finalComputedTotal < 2000 ? 'SMALL_HOUSEHOLD' : 'LARGE_HOUSEHOLD',
+                                finalComputedTotal
+                            );
+                            return (
+                                <div className="pt-2 border-t border-slate-200/80 space-y-1.5 text-[11px]">
+                                    <div className="flex justify-between text-slate-500">
+                                        <span>KóLẹ̀ Platform Fee:</span>
+                                        <span className="font-bold text-emerald-600">
+                                            +{formatNaira(feeCalc.platformFee)}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-slate-500">
+                                        <span>Paystack Gateway Processing:</span>
+                                        <span className={`font-bold ${feeCalc.isGatewayWaived ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                            {feeCalc.isGatewayWaived ? '₦0.00 (Waived)' : `+${formatNaira(feeCalc.gatewayFee, true)}`}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         {/* Final Calculated Total */}
                         <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 text-sm">

@@ -1,9 +1,17 @@
 // src/components/collector/AddCustomerModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useClusterStore } from '../../store/useClusterStore';
 import { OSOGBO_CLUSTERS } from '../../utils/zoneValidator';
+import {
+  calculateCheckoutTotal,
+  ENTITY_TYPES,
+  EntityType,
+  formatNaira,
+  getRecommendedTariff,
+  FeeCalculationResult,
+} from '../../utils/feeCalculator';
 import {
   X,
   UserPlus,
@@ -19,6 +27,10 @@ import {
   ArrowRight,
   ExternalLink,
   Sparkles,
+  Building2,
+  Home,
+  Store,
+  HelpCircle,
 } from 'lucide-react';
 
 export interface HouseholdCustomer {
@@ -28,7 +40,11 @@ export interface HouseholdCustomer {
   phone: string;
   address: string;
   cluster_zone: string;
+  entity_type?: EntityType;
   monthly_tariff: number;
+  platform_fee?: number;
+  gateway_fee?: number;
+  total_bill?: number;
   permanent_password: string;
   collector_id?: string;
   collector_name?: string;
@@ -107,6 +123,7 @@ export default function AddCustomerModal({
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [clusterZone, setClusterZone] = useState(initialCluster);
+  const [entityType, setEntityType] = useState<EntityType>('LARGE_HOUSEHOLD');
   const [monthlyTariff, setMonthlyTariff] = useState('4000');
   const [password, setPassword] = useState('Kole#2026');
   const [notes, setNotes] = useState('');
@@ -119,6 +136,29 @@ export default function AddCustomerModal({
   const [copiedPassword, setCopiedPassword] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
 
+  // Live User-Bearing Fee Calculation
+  const feeBreakdown: FeeCalculationResult = useMemo(() => {
+    return calculateCheckoutTotal(entityType, Number(monthlyTariff) || 0);
+  }, [entityType, monthlyTariff]);
+
+  // Quick Tariff Presets depending on Entity Category
+  const quickPresets = useMemo(() => {
+    switch (entityType) {
+      case 'SMALL_HOUSEHOLD':
+        return ['1000', '1500', '1800'];
+      case 'LARGE_HOUSEHOLD':
+        return ['2500', '3500', '4000', '5000'];
+      case 'SMALL_BUSINESS':
+        return ['6000', '8000', '10000'];
+      case 'MEDIUM_ORGANIZATION':
+        return ['12000', '15000', '20000'];
+      case 'BIG_ORGANIZATION':
+        return ['30000', '40000', '50000'];
+      default:
+        return ['2500', '4000', '6000'];
+    }
+  }, [entityType]);
+
   if (!isOpen) return null;
 
   const resetForm = () => {
@@ -126,6 +166,7 @@ export default function AddCustomerModal({
     setPhone('');
     setAddress('');
     setClusterZone(initialCluster);
+    setEntityType('LARGE_HOUSEHOLD');
     setMonthlyTariff('4000');
     setPassword('Kole#2026');
     setNotes('');
@@ -139,6 +180,12 @@ export default function AddCustomerModal({
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  const handleEntityTypeChange = (newType: EntityType) => {
+    setEntityType(newType);
+    const rec = getRecommendedTariff(newType);
+    setMonthlyTariff(String(rec));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -166,7 +213,11 @@ export default function AddCustomerModal({
       phone: cleanPhone,
       address: cleanAddress,
       cluster_zone: clusterZone,
+      entity_type: entityType,
       monthly_tariff: cleanTariff,
+      platform_fee: feeBreakdown.platformFee,
+      gateway_fee: feeBreakdown.gatewayFee,
+      total_bill: feeBreakdown.totalCharged,
       permanent_password: cleanPassword,
       collector_id: activeCollector.id || 'COL-1001',
       collector_name: activeCollector.companyName || activeCollector.collectorName || 'KóLẹ̀ Fleet Operator',
@@ -182,7 +233,8 @@ export default function AddCustomerModal({
     try {
       // 1. Insert record into Supabase households table
       if (supabase?.from) {
-        const { error: dbError } = await supabase.from('households').insert([newHousehold]);
+        const client: any = supabase;
+        const { error: dbError } = await client.from('households').insert([newHousehold]);
         if (dbError) {
           console.warn('[AddCustomerModal] Supabase households insert notice:', dbError);
         }
@@ -238,17 +290,26 @@ export default function AddCustomerModal({
       cleanPhone = `234${cleanPhone}`;
     }
 
+    const matchedEntity = ENTITY_TYPES.find((e) => e.key === createdCustomer.entity_type);
+    const categoryLabel = matchedEntity?.label || 'Household Client';
+    const totalBillAmt = createdCustomer.total_bill || (createdCustomer.monthly_tariff + (createdCustomer.platform_fee || 200));
+
     const message =
       `🎉 *Welcome to KÓLẸ̀ Municipal Waste Services!*\n\n` +
-      `Your household has been registered for weekly municipal waste clearance.\n\n` +
+      `Your account has been registered for weekly municipal waste clearance.\n\n` +
       `📌 *Account Details:*\n` +
       `• *Client Name:* ${createdCustomer.full_name}\n` +
       `• *Customer ID:* ${createdCustomer.customer_code}\n` +
+      `• *Category:* ${categoryLabel}\n` +
       `• *Login Phone:* ${createdCustomer.phone}\n` +
       `• *Permanent Password:* ${createdCustomer.permanent_password}\n` +
       `• *House Address:* ${createdCustomer.address}\n` +
-      `• *Cluster Zone:* ${createdCustomer.cluster_zone}\n` +
-      `• *Monthly Tariff:* ₦${createdCustomer.monthly_tariff.toLocaleString()}/mo\n` +
+      `• *Cluster Zone:* ${createdCustomer.cluster_zone}\n\n` +
+      `💳 *User-Bearing Monthly Billing Breakdown:*\n` +
+      `• *Base Waste Tariff:* ₦${createdCustomer.monthly_tariff.toLocaleString()}/mo\n` +
+      `• *KóLẹ̀ Platform Fee:* ₦${(createdCustomer.platform_fee ?? 200).toLocaleString()}\n` +
+      `• *Gateway Fee:* ${createdCustomer.gateway_fee ? `₦${createdCustomer.gateway_fee.toLocaleString()}` : '₦0.00 (Waived)'}\n` +
+      `• *Total Monthly Bill:* ₦${totalBillAmt.toLocaleString()}/mo\n` +
       `• *Payment Status:* UP TO DATE (₦0.00 Due)\n\n` +
       `🌐 Sign in anytime at: https://app.kole.com.ng\n` +
       `Assigned Fleet Operator: ${activeCollector.companyName || 'Osogbo Central Cleaners'}`;
@@ -260,12 +321,12 @@ export default function AddCustomerModal({
   };
 
   const allSummaryText = createdCustomer
-    ? `KÓLẸ̀ CLIENT CREDENTIALS\nName: ${createdCustomer.full_name}\nCustomer ID: ${createdCustomer.customer_code}\nPhone: ${createdCustomer.phone}\nPassword: ${createdCustomer.permanent_password}\nAddress: ${createdCustomer.address} (${createdCustomer.cluster_zone})\nMonthly Tariff: ₦${createdCustomer.monthly_tariff.toLocaleString()}/mo\nPortal: https://app.kole.com.ng`
+    ? `KÓLẸ̀ CLIENT CREDENTIALS\nName: ${createdCustomer.full_name}\nCustomer ID: ${createdCustomer.customer_code}\nCategory: ${createdCustomer.entity_type || 'LARGE_HOUSEHOLD'}\nPhone: ${createdCustomer.phone}\nPassword: ${createdCustomer.permanent_password}\nAddress: ${createdCustomer.address} (${createdCustomer.cluster_zone})\nBase Tariff: ₦${createdCustomer.monthly_tariff.toLocaleString()}/mo\nTotal Bill: ₦${(createdCustomer.total_bill || createdCustomer.monthly_tariff).toLocaleString()}/mo\nPortal: https://app.kole.com.ng`
     : '';
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto font-sans">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl relative my-auto animate-in fade-in zoom-in-95 text-slate-100">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl relative my-auto animate-in fade-in zoom-in-95 text-slate-100 max-h-[92vh] overflow-y-auto">
         {/* Close Button */}
         <button
           type="button"
@@ -280,7 +341,7 @@ export default function AddCustomerModal({
           /* ============================================================ */
           /* FORM VIEW: Assisted Client Registration                      */
           /* ============================================================ */
-          <div className="space-y-5">
+          <div className="space-y-4">
             {/* Modal Header */}
             <div className="space-y-1 pr-6">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
@@ -288,7 +349,7 @@ export default function AddCustomerModal({
               </div>
               <h2 className="text-lg font-black text-white">Register Household / Client</h2>
               <p className="text-xs text-slate-400">
-                Create permanent client credentials, assign to your operating zone, and issue a unique KóLẹ̀ tracking code.
+                Assign client entity type, set monthly waste tariff, and preview user-bearing fees.
               </p>
             </div>
 
@@ -298,7 +359,7 @@ export default function AddCustomerModal({
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
               {/* Full Name */}
               <div>
                 <label className="font-bold text-slate-300 block mb-1">
@@ -369,26 +430,61 @@ export default function AddCustomerModal({
                 </div>
               </div>
 
+              {/* ======================================================= */}
+              {/* ENTITY CATEGORY SELECTOR (5 Tiers)                      */}
+              {/* ======================================================= */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-300 block">
+                    Client Entity Category *
+                  </label>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      feeBreakdown.isMicroTier
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                    }`}
+                  >
+                    {feeBreakdown.isMicroTier ? 'Micro-Tier (₦100 Fee)' : 'Standard (₦200 Fee)'}
+                  </span>
+                </div>
+
+                <div className="relative">
+                  <select
+                    value={entityType}
+                    onChange={(e) => handleEntityTypeChange(e.target.value as EntityType)}
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl font-bold text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  >
+                    {ENTITY_TYPES.map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {t.label} — {t.description} ({t.tariffRange})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               {/* Monthly Tariff & Permanent Password */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="font-bold text-slate-300 block mb-1">
-                    Monthly Tariff (₦) *
+                    Base Waste Tariff (₦) *
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 font-bold text-slate-500">₦</span>
                     <input
                       type="number"
                       required
-                      min="1000"
-                      step="500"
+                      min="500"
+                      step="100"
                       value={monthlyTariff}
                       onChange={(e) => setMonthlyTariff(e.target.value)}
                       className="w-full pl-8 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl font-bold text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                     />
                   </div>
+                  {/* Preset Chips */}
                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                    {['4000', '6000', '8000', '10000'].map((amt) => (
+                    {quickPresets.map((amt) => (
                       <button
                         key={amt}
                         type="button"
@@ -422,6 +518,74 @@ export default function AddCustomerModal({
                   <p className="text-[10px] text-slate-500 mt-1">
                     Permanent password client uses to login.
                   </p>
+                </div>
+              </div>
+
+              {/* ======================================================= */}
+              {/* LIVE USER-BEARING FEE & PRICING BREAKDOWN CARD          */}
+              {/* ======================================================= */}
+              <div className="p-3.5 bg-slate-950/80 rounded-2xl border border-slate-800/90 space-y-2">
+                <div className="flex items-center justify-between text-xs pb-1.5 border-b border-slate-800/80">
+                  <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                    <Sparkles size={13} className="text-emerald-400" />
+                    <span>Live Fee Breakdown</span>
+                  </span>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border ${
+                      feeBreakdown.isMicroTier
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                    }`}
+                  >
+                    {feeBreakdown.isMicroTier ? 'Micro-Tier (₦100)' : 'User-Bearing'}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-[11px]">
+                  <div className="flex justify-between text-slate-400">
+                    <span>Base Evacuation Tariff:</span>
+                    <span className="font-bold text-white">
+                      {formatNaira(feeBreakdown.baseTariff)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <span>KóLẹ̀ Platform Fee:</span>
+                      <span className="text-[9px] text-slate-500">
+                        ({feeBreakdown.isMicroTier ? 'Micro ₦100' : 'Standard ₦200'})
+                      </span>
+                    </span>
+                    <span className="font-bold text-emerald-400">
+                      +{formatNaira(feeBreakdown.platformFee)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <span>Paystack Gateway Fee:</span>
+                      <span className="text-[9px] text-slate-500">
+                        ({feeBreakdown.isGatewayWaived ? 'Waived for < ₦2,500' : '1.5% + ₦100'})
+                      </span>
+                    </span>
+                    <span
+                      className={`font-bold ${
+                        feeBreakdown.isGatewayWaived ? 'text-emerald-400' : 'text-amber-400'
+                      }`}
+                    >
+                      {feeBreakdown.isGatewayWaived
+                        ? '₦0.00 (Waived)'
+                        : `+${formatNaira(feeBreakdown.gatewayFee, true)}`}
+                    </span>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-xs">
+                    <span className="font-black text-white">Total Customer Monthly Bill:</span>
+                    <span className="font-black text-sm text-emerald-400">
+                      {formatNaira(feeBreakdown.totalCharged, true)}{' '}
+                      <span className="text-[10px] font-normal text-slate-400">/mo</span>
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -467,7 +631,7 @@ export default function AddCustomerModal({
           /* ============================================================ */
           /* SUCCESS STATE: Code Issued & Permanent Login Details         */
           /* ============================================================ */
-          <div className="space-y-5 text-center">
+          <div className="space-y-4 text-center">
             <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
               <CheckCircle2 size={34} />
             </div>
@@ -480,7 +644,7 @@ export default function AddCustomerModal({
                 {createdCustomer.full_name}
               </h2>
               <p className="text-xs text-slate-400">
-                Tracking code generated. Share these credentials with the client to access their KóLẹ̀ account.
+                Tracking code generated. Share these credentials and fee breakdown with the client.
               </p>
             </div>
 
@@ -535,20 +699,48 @@ export default function AddCustomerModal({
                 </button>
               </div>
 
-              {/* Tariff & Zone */}
-              <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
-                <div>
-                  <span className="text-slate-500">Monthly Tariff:</span>
-                  <p className="font-bold text-white">
-                    ₦{createdCustomer.monthly_tariff.toLocaleString()} / mo
-                  </p>
+              {/* User-Bearing Pricing Breakdown Card in Success View */}
+              <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1.5 text-[11px]">
+                <div className="flex justify-between text-slate-400">
+                  <span>Entity Category:</span>
+                  <span className="font-bold text-white">
+                    {ENTITY_TYPES.find((e) => e.key === createdCustomer.entity_type)?.label ||
+                      createdCustomer.entity_type ||
+                      'Large Household'}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-slate-500">Assigned Zone:</span>
-                  <p className="font-bold text-emerald-400 truncate">
-                    {createdCustomer.cluster_zone}
-                  </p>
+                <div className="flex justify-between text-slate-400">
+                  <span>Base Evacuation Tariff:</span>
+                  <span className="font-bold text-white">
+                    ₦{createdCustomer.monthly_tariff.toLocaleString()}/mo
+                  </span>
                 </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>KóLẹ̀ Platform Fee:</span>
+                  <span className="font-bold text-emerald-400">
+                    +₦{(createdCustomer.platform_fee ?? 200).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Gateway Fee:</span>
+                  <span className="font-bold text-slate-300">
+                    {createdCustomer.gateway_fee ? `+₦${createdCustomer.gateway_fee.toLocaleString()}` : '₦0.00 (Waived)'}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-slate-800 font-bold text-white text-xs">
+                  <span>Total Monthly Bill:</span>
+                  <span className="text-emerald-400">
+                    ₦{(createdCustomer.total_bill || (createdCustomer.monthly_tariff + (createdCustomer.platform_fee ?? 200))).toLocaleString()}/mo
+                  </span>
+                </div>
+              </div>
+
+              {/* Assigned Zone */}
+              <div className="flex justify-between items-center text-[11px] pt-1">
+                <span className="text-slate-500">Assigned Operating Zone:</span>
+                <span className="font-bold text-emerald-400">
+                  {createdCustomer.cluster_zone}
+                </span>
               </div>
             </div>
 
@@ -596,4 +788,3 @@ export default function AddCustomerModal({
     </div>
   );
 }
-
