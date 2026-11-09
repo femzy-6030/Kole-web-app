@@ -121,6 +121,61 @@ const mockSupabaseClient = {
                 error: null,
             };
         },
+        signInWithPassword: async ({ email, password }) => {
+            const cleanEmail = (email || '').trim().toLowerCase();
+            if (!cleanEmail || !password) {
+                return {
+                    data: { user: null, session: null },
+                    error: new Error('Invalid email or password credentials provided.'),
+                };
+            }
+
+            // Determine role: super admin vs collector
+            const isSuperAdmin = cleanEmail.includes('admin') || cleanEmail.includes('super');
+            const role = isSuperAdmin ? 'SUPER_ADMIN' : 'COLLECTOR';
+            const userId = isSuperAdmin ? 'ADM-SUP-001' : 'COL-1001';
+
+            const user = {
+                id: userId,
+                email: cleanEmail,
+                user_metadata: {
+                    full_name: isSuperAdmin ? 'System Super Administrator' : 'Osogbo Central Cleaners Ltd',
+                    role: role,
+                },
+            };
+
+            const session = {
+                access_token: `mock-supabase-jwt-${Date.now()}`,
+                refresh_token: `mock-supabase-refresh-${Date.now()}`,
+                user: user,
+            };
+
+            // Seed profiles table in mock database so .from('profiles').select('*') returns the record
+            try {
+                if (typeof localStorage !== 'undefined') {
+                    const raw = localStorage.getItem('kole-mock-db-profiles');
+                    let profiles = raw ? JSON.parse(raw) : [];
+                    const existingIdx = profiles.findIndex((p) => p.id === userId || p.email === cleanEmail);
+                    const profileData = {
+                        id: userId,
+                        user_id: userId,
+                        email: cleanEmail,
+                        full_name: user.user_metadata.full_name,
+                        role: role,
+                        is_active: true,
+                        created_at: new Date().toISOString(),
+                    };
+                    if (existingIdx >= 0) {
+                        profiles[existingIdx] = { ...profiles[existingIdx], ...profileData };
+                    } else {
+                        profiles.push(profileData);
+                    }
+                    localStorage.setItem('kole-mock-db-profiles', JSON.stringify(profiles));
+                }
+            } catch {}
+
+            return { data: { user, session }, error: null };
+        },
         signOut: async () => {
             return { error: null };
         },

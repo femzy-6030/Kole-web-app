@@ -48,10 +48,13 @@ import {
 export default function App() {
     const { isAuthenticated, role, login } = useAuthStore();
 
-    // URL Query & Hash listener for Hidden Admin Route (?admin=true or #admin)
+    // URL Query & Hash listener for Admin Route (?admin=true, #admin, /admin, /admin/dashboard)
     const checkIsAdminRoute = () => {
         if (typeof window === 'undefined') return false;
-        return window.location.search.includes('admin=true') || window.location.hash === '#admin';
+        const path = window.location.pathname.toLowerCase();
+        const hash = window.location.hash.toLowerCase();
+        const search = window.location.search.toLowerCase();
+        return search.includes('admin=true') || hash.includes('admin') || path.startsWith('/admin');
     };
     const [isAdminRoute, setIsAdminRoute] = useState(checkIsAdminRoute);
 
@@ -1087,8 +1090,8 @@ export default function App() {
             );
         }
 
-        // 4. ADMIN ROLE (Only renders when visiting /?admin=true or #admin)
-        if (role === 'admin') {
+        // 4. ADMIN ROLE (Only renders when visiting /?admin=true, #admin, or /admin/dashboard)
+        if (role === 'admin' || role === 'SUPER_ADMIN') {
             if (!isAdminRoute) {
                 return (
                     <div className="flex-1 flex items-center justify-center p-6 text-center">
