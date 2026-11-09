@@ -5,7 +5,6 @@ import { useAuthStore, handleAuthSuccess } from '../../store/useAuthStore';
 import {
   Truck,
   ShieldCheck,
-  ShieldAlert,
   Lock,
   Mail,
   Eye,
@@ -16,7 +15,6 @@ import {
   Radio,
   CheckCircle2,
   Loader2,
-  KeyRound,
 } from 'lucide-react';
 
 export interface CollectorLoginProps {
@@ -41,7 +39,7 @@ export default function CollectorLogin({
   // Flow & State
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [loginRoleDetected, setLoginRoleDetected] = useState<string | null>(null);
+  const [verifiedCollectorName, setVerifiedCollectorName] = useState<string | null>(null);
 
   // "Remember Me" Persistence: Auto-populate saved email from localStorage on mount
   useEffect(() => {
@@ -69,27 +67,22 @@ export default function CollectorLogin({
     }
   };
 
-  const handleQuickFill = (roleType: 'SUPER_ADMIN' | 'COLLECTOR') => {
+  const handleQuickFillCollector = () => {
     setErrorMessage(null);
-    if (roleType === 'SUPER_ADMIN') {
-      setEmail('admin@kole.ng');
-      setPassword('Admin#2026');
-    } else {
-      setEmail('collector@kole.ng');
-      setPassword('Collector#2026');
-    }
+    setEmail('collector@kole.ng');
+    setPassword('Collector#2026');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
-    setLoginRoleDetected(null);
+    setVerifiedCollectorName(null);
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
 
     if (!cleanEmail || !cleanPassword) {
-      setErrorMessage('Please provide both your registered email address and password.');
+      setErrorMessage('Please provide both your registered collector email address and password.');
       return;
     }
 
@@ -107,8 +100,8 @@ export default function CollectorLogin({
         setIsLoading(false);
         const readableError =
           authError?.message === 'Invalid login credentials'
-            ? 'Invalid email or password. Please verify your credentials and try again.'
-            : authError?.message || 'Authentication failed. Please verify your credentials.';
+            ? 'Invalid collector email or password. Please verify your credentials and try again.'
+            : authError?.message || 'Authentication failed. Please verify your collector credentials.';
         setErrorMessage(readableError);
         return;
       }
@@ -116,13 +109,13 @@ export default function CollectorLogin({
       const authUser = authData.user;
       const authSession = authData.session;
 
-      // 2. Query custom 'profiles' table immediately after login to check role
+      // 2. Query custom 'profiles' / 'collectors' table to verify role is COLLECTOR
       const client: any = supabase;
       let userProfile: any = null;
 
       try {
         if (client?.from) {
-          // Attempt query by primary id
+          // Attempt query by primary id in profiles
           const { data: profileById, error: errById } = await client
             .from('profiles')
             .select('*')
@@ -170,28 +163,29 @@ export default function CollectorLogin({
         console.warn('[CollectorLogin] Profiles lookup warning:', dbErr);
       }
 
-      // Check user_metadata fallback if profiles row is not yet propagated
+      // Check role assignment strictly
       const assignedRoleRaw =
         userProfile?.role ||
         authUser.user_metadata?.role ||
-        (cleanEmail.includes('admin') || cleanEmail.includes('super')
-          ? 'SUPER_ADMIN'
-          : cleanEmail.includes('collector')
-          ? 'COLLECTOR'
-          : null);
+        (cleanEmail.includes('collector') ? 'COLLECTOR' : null);
 
       const assignedRole = assignedRoleRaw ? String(assignedRoleRaw).toUpperCase().trim() : '';
 
-      // 3. Validate Role Authorization (Only SUPER_ADMIN or COLLECTOR permitted)
-      if (assignedRole !== 'SUPER_ADMIN' && assignedRole !== 'ADMIN' && assignedRole !== 'COLLECTOR') {
+      // 3. Strict Validation: This portal is EXCLUSIVELY for Collectors
+      if (assignedRole !== 'COLLECTOR' && assignedRole !== 'OPERATOR') {
         setIsLoading(false);
         setErrorMessage(
-          'Access Restricted: Your account does not have authorization as a Collector or Super Admin. Please contact municipal operations.'
+          'Access Restricted: This portal is exclusively for authorized Waste Collectors and Fleet Operators. Access has been denied.'
         );
         return;
       }
 
-      setLoginRoleDetected(assignedRole);
+      const collectorDisplayName =
+        userProfile?.company_name ||
+        userProfile?.full_name ||
+        'Osogbo Central Cleaners Ltd';
+
+      setVerifiedCollectorName(collectorDisplayName);
 
       // 4. "Remember Me" Persistence handling
       try {
@@ -215,61 +209,36 @@ export default function CollectorLogin({
       };
       handleAuthSuccess(sessionTokens, rememberMe);
 
-      // 5. Role-Based Routing
-      if (assignedRole === 'SUPER_ADMIN' || assignedRole === 'ADMIN') {
-        // Super Admin Route -> /admin/dashboard
-        const adminData = {
-          id: authUser.id,
-          email: authUser.email || cleanEmail,
-          fullName: userProfile?.full_name || 'System Super Administrator',
-          role: 'SUPER_ADMIN',
-          isAdmin: true,
-          ...userProfile,
-        };
+      // 5. Store & Route to Collector Dashboard (/collector/dashboard)
+      const collectorData = {
+        id: userProfile?.id || authUser.id || 'COL-1001',
+        email: authUser.email || cleanEmail,
+        fullName: collectorDisplayName,
+        companyName: collectorDisplayName,
+        phoneNumber: userProfile?.phone || userProfile?.phoneNumber || '08012345678',
+        phone: userProfile?.phone || userProfile?.phoneNumber || '08012345678',
+        Area: userProfile?.area || 'Oke-Fia',
+        cluster: userProfile?.cluster || 'Oke-Fia Zone',
+        role: 'COLLECTOR',
+        ...userProfile,
+      };
 
-        login(adminData, 'admin', rememberMe, sessionTokens);
-        setIsLoading(false);
+      login(collectorData, 'collector', rememberMe, sessionTokens);
+      setIsLoading(false);
 
-        if (typeof window !== 'undefined') {
-          window.history.pushState({}, '', '/admin/dashboard');
-          window.dispatchEvent(new Event('popstate'));
-        }
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', '/collector/dashboard');
+        window.dispatchEvent(new Event('popstate'));
+      }
 
-        if (onLoginSuccess) {
-          onLoginSuccess(adminData);
-        }
-      } else {
-        // Collector Route -> /collector/dashboard
-        const collectorData = {
-          id: userProfile?.id || authUser.id || 'COL-1001',
-          email: authUser.email || cleanEmail,
-          fullName: userProfile?.full_name || userProfile?.company_name || 'Osogbo Central Cleaners Ltd',
-          companyName: userProfile?.company_name || userProfile?.full_name || 'Osogbo Central Cleaners Ltd',
-          phoneNumber: userProfile?.phone || userProfile?.phoneNumber || '08012345678',
-          phone: userProfile?.phone || userProfile?.phoneNumber || '08012345678',
-          Area: userProfile?.area || 'Oke-Fia',
-          cluster: userProfile?.cluster || 'Oke-Fia Zone',
-          role: 'COLLECTOR',
-          ...userProfile,
-        };
-
-        login(collectorData, 'collector', rememberMe, sessionTokens);
-        setIsLoading(false);
-
-        if (typeof window !== 'undefined') {
-          window.history.pushState({}, '', '/collector/dashboard');
-          window.dispatchEvent(new Event('popstate'));
-        }
-
-        if (onLoginSuccess) {
-          onLoginSuccess(collectorData);
-        }
+      if (onLoginSuccess) {
+        onLoginSuccess(collectorData);
       }
     } catch (err: any) {
       setIsLoading(false);
       console.error('[CollectorLogin] Unexpected sign in exception:', err);
       setErrorMessage(
-        err?.message || 'A network error occurred while reaching the authentication portal.'
+        err?.message || 'A network error occurred while reaching the collector portal.'
       );
     }
   };
@@ -293,7 +262,7 @@ export default function CollectorLogin({
 
         <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20 text-[10px] font-mono font-bold">
           <Radio size={11} className="animate-pulse text-[#22c55e]" />
-          COMMAND GATE ACTIVE
+          DISPATCH NET ACTIVE
         </span>
       </header>
 
@@ -302,47 +271,34 @@ export default function CollectorLogin({
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex p-3 bg-[#22c55e]/10 border border-[#22c55e]/30 text-[#22c55e] rounded-2xl mb-1 shadow-inner">
-            <KeyRound size={26} className="text-[#22c55e]" />
+            <Truck size={28} className="text-[#22c55e]" />
           </div>
           <h1 className="text-xl font-black tracking-tight text-white flex items-center justify-center gap-2">
-            <span>KÓLẸ̀ Operations Gate</span>
+            <span>KÓLẸ̀ Collector Portal</span>
           </h1>
           <p className="text-xs text-slate-400">
-            Dedicated Sign-In for Fleet Collectors & Super Administrators
+            Dedicated Sign-In for Fleet Collectors & Waste Operators
           </p>
         </div>
 
-        {/* Quick Testing Role Presets */}
-        <div className="p-3 bg-slate-950/80 border border-slate-800/90 rounded-2xl space-y-2 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Sparkles size={11} className="text-[#22c55e]" />
-              Quick Testing Presets:
-            </span>
-            <span className="text-[9px] text-[#22c55e] font-mono font-bold bg-[#22c55e]/10 px-1.5 py-0.2 rounded border border-[#22c55e]/20">
-              Auto-Fills Form
-            </span>
+        {/* 1-Click Quick Demo Pill */}
+        <div className="p-3 bg-slate-950/80 border border-slate-800/90 rounded-2xl flex items-center justify-between gap-3 text-xs">
+          <div className="min-w-0">
+            <p className="font-bold text-[#22c55e] text-[11px] flex items-center gap-1">
+              <Sparkles size={12} className="text-[#22c55e] shrink-0" />
+              Demo Collector Fleet:
+            </p>
+            <p className="text-[10px] text-slate-400 truncate">
+              collector@kole.ng • Oke-Fia Zone
+            </p>
           </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickFill('COLLECTOR')}
-              className="py-1.5 px-2.5 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white rounded-xl border border-slate-700/80 text-[11px] font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-            >
-              <Truck size={13} className="text-[#22c55e]" />
-              <span>Collector Fleet</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickFill('SUPER_ADMIN')}
-              className="py-1.5 px-2.5 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white rounded-xl border border-slate-700/80 text-[11px] font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-            >
-              <ShieldCheck size={13} className="text-emerald-400" />
-              <span>Super Admin</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleQuickFillCollector}
+            className="px-3 py-1.5 bg-[#22c55e] hover:bg-[#16a34a] text-slate-950 font-black text-[10px] rounded-xl shrink-0 cursor-pointer transition-all shadow-sm flex items-center gap-1"
+          >
+            <span>⚡ Fill Demo</span>
+          </button>
         </div>
 
         {/* Clean Error Banner */}
@@ -350,23 +306,23 @@ export default function CollectorLogin({
           <div className="p-3 bg-rose-950/50 border border-rose-800/80 rounded-2xl text-rose-300 text-xs flex items-start gap-2.5 animate-in fade-in duration-150">
             <AlertCircle size={16} className="text-rose-400 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-bold text-[11px]">Authentication Error</p>
+              <p className="font-bold text-[11px]">Authentication Notice</p>
               <p className="text-[11px] text-rose-300/90 mt-0.5 leading-snug">{errorMessage}</p>
             </div>
           </div>
         )}
 
-        {/* Role Detection Toast */}
-        {loginRoleDetected && (
+        {/* Collector Verified Toast */}
+        {verifiedCollectorName && (
           <div className="p-2.5 bg-[#22c55e]/10 border border-[#22c55e]/30 rounded-xl text-[#22c55e] text-xs flex items-center gap-2">
             <CheckCircle2 size={15} className="text-[#22c55e] shrink-0" />
-            <span className="font-bold">
-              Role Verified: {loginRoleDetected === 'SUPER_ADMIN' ? 'Super Administrator' : 'Waste Collector'}
+            <span className="font-bold truncate">
+              Collector Verified: {verifiedCollectorName}
             </span>
           </div>
         )}
 
-        {/* Sign-In Form */}
+        {/* Collector Sign-In Form */}
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           {/* Email Address */}
           <div>
@@ -374,7 +330,7 @@ export default function CollectorLogin({
               htmlFor="collector-email"
               className="font-bold text-slate-300 uppercase tracking-wider text-[10px] block mb-1.5"
             >
-              Official Email Address *
+              Registered Collector Email *
             </label>
             <div className="relative">
               <Mail size={16} className="absolute left-3.5 top-3.5 text-slate-500" />
@@ -382,7 +338,7 @@ export default function CollectorLogin({
                 id="collector-email"
                 type="email"
                 autoComplete="email"
-                placeholder="name@kole.ng or admin@kole.ng"
+                placeholder="e.g. collector@kole.ng or fleet@cleaners.ng"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -400,7 +356,7 @@ export default function CollectorLogin({
               htmlFor="collector-password"
               className="font-bold text-slate-300 uppercase tracking-wider text-[10px] block mb-1.5"
             >
-              Password *
+              Operator Password *
             </label>
             <div className="relative">
               <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-500" />
@@ -442,7 +398,7 @@ export default function CollectorLogin({
             </label>
 
             <span className="text-[10px] text-slate-500 font-mono">
-              Role Auto-Routed
+              Fleet Session Encrypted
             </span>
           </div>
 
@@ -455,12 +411,12 @@ export default function CollectorLogin({
             {isLoading ? (
               <>
                 <Loader2 size={16} className="animate-spin text-slate-950" />
-                <span>Verifying Credentials & Role...</span>
+                <span>Verifying Collector Credentials...</span>
               </>
             ) : (
               <>
-                <ShieldCheck size={16} className="text-slate-950" />
-                <span>Sign In to Operations Portal</span>
+                <Truck size={16} className="text-slate-950" />
+                <span>Sign In to Collector Portal</span>
               </>
             )}
           </button>
@@ -491,4 +447,3 @@ export default function CollectorLogin({
     </div>
   );
 }
-
