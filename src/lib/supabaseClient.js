@@ -121,6 +121,47 @@ const mockSupabaseClient = {
                 error: null,
             };
         },
+        signUp: async ({ email, password, options }) => {
+            const cleanEmail = (email || '').trim().toLowerCase();
+            const fullName = options?.data?.full_name || 'Waste Collector Operator';
+            const role = options?.data?.role || 'COLLECTOR';
+            const userId = `COL-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            const user = {
+                id: userId,
+                email: cleanEmail,
+                user_metadata: {
+                    full_name: fullName,
+                    role: role,
+                    ...options?.data,
+                },
+            };
+
+            const session = {
+                access_token: `mock-supabase-jwt-${Date.now()}`,
+                refresh_token: `mock-supabase-refresh-${Date.now()}`,
+                user: user,
+            };
+
+            try {
+                if (typeof localStorage !== 'undefined') {
+                    const raw = localStorage.getItem('kole-mock-db-profiles');
+                    let profiles = raw ? JSON.parse(raw) : [];
+                    profiles.push({
+                        id: userId,
+                        user_id: userId,
+                        email: cleanEmail,
+                        full_name: fullName,
+                        role: role,
+                        is_active: true,
+                        created_at: new Date().toISOString(),
+                    });
+                    localStorage.setItem('kole-mock-db-profiles', JSON.stringify(profiles));
+                }
+            } catch {}
+
+            return { data: { user, session }, error: null };
+        },
         signInWithPassword: async ({ email, password }) => {
             const cleanEmail = (email || '').trim().toLowerCase();
             if (!cleanEmail || !password) {

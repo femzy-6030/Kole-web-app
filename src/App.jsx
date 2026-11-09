@@ -489,13 +489,16 @@ export default function App() {
                             <Truck size={14} className="text-brand-primary" /> Collector Portal Mode
                         </span>
                         <button
+                            type="button"
                             onClick={() => {
                                 setAuthMode('login');
+                                setIsCollectorRoute(true);
                                 if (typeof window !== 'undefined') {
                                     window.history.pushState({}, '', '/collector');
+                                    window.dispatchEvent(new Event('popstate'));
                                 }
                             }}
-                            className="text-slate-300 hover:text-white font-bold underline cursor-pointer"
+                            className="text-slate-300 hover:text-white font-bold underline cursor-pointer text-xs flex items-center gap-1"
                         >
                             ← Back to Collector Login
                         </button>

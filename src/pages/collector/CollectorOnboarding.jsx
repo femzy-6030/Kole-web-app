@@ -299,6 +299,21 @@ export default function CollectorOnboarding({ onOnboardingComplete }) {
                         Register Operator & Activate Coverage Zone
                     </Button>
 
+                    <div className="text-center pt-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (typeof window !== 'undefined') {
+                                    window.history.pushState({}, '', '/collector');
+                                    window.dispatchEvent(new Event('popstate'));
+                                }
+                            }}
+                            className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer underline"
+                        >
+                            ← Already have an account? Return to Collector Sign In
+                        </button>
+                    </div>
+
                 </form>
             </div>
         </div>
