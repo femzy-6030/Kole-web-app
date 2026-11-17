@@ -14,10 +14,15 @@ export default function CollectorPortal({ initialSection = 'requests' }) {
         const path = window.location.pathname.toLowerCase();
         const hash = window.location.hash.toLowerCase();
 
-        if (path.includes('profile') || hash.includes('profile')) return 'profiles';
-        if (path.includes('assistance') || hash.includes('assistance') || path.includes('support')) return 'assistances';
-        if (path.includes('ledger') || hash.includes('ledger') || path.includes('customer') || hash.includes('debtor')) return 'ledger';
-        if (path.includes('zone') || hash.includes('zone') || path.includes('cluster')) return 'zones';
+        if (path.includes('override') || hash.includes('override')) return 'ledger_overrides';
+        if (path.includes('history') || hash.includes('history')) return 'ledger_history';
+        if (path.includes('ledger') || hash.includes('ledger') || path.includes('customer') || hash.includes('debtor')) return 'ledger_invoices';
+        if (path.includes('verification') || hash.includes('verification') || path.includes('proof')) return 'requests_verification';
+        if (path.includes('profile') || hash.includes('profile')) return 'profiles_verification';
+        if (path.includes('gateway') || hash.includes('gateway')) return 'profiles_gateway';
+        if (path.includes('assistance') || hash.includes('assistance') || path.includes('support')) return 'assistances_tickets';
+        if (path.includes('dispute') || hash.includes('dispute')) return 'assistances_disputes';
+        if (path.includes('zone') || hash.includes('zone') || path.includes('cluster')) return 'zones_maps';
         return 'requests';
     };
 
@@ -44,11 +49,11 @@ export default function CollectorPortal({ initialSection = 'requests' }) {
 
     return (
         <CollectorSidebarLayout activeSection={activeSection} onNavigate={handleNavigate}>
-            {activeSection === 'requests' && <CollectorRequestsView />}
-            {activeSection === 'ledger' && <CollectorCustomerLedger />}
-            {activeSection === 'zones' && <CollectorClustersView />}
-            {activeSection === 'profiles' && <CollectorProfilesView />}
-            {activeSection === 'assistances' && <CollectorAssistancesView />}
+            {activeSection.startsWith('requests') && <CollectorRequestsView />}
+            {activeSection.startsWith('ledger') && <CollectorCustomerLedger initialSubModule={activeSection} />}
+            {activeSection.startsWith('zones') && <CollectorClustersView />}
+            {activeSection.startsWith('profiles') && <CollectorProfilesView />}
+            {activeSection.startsWith('assistances') && <CollectorAssistancesView />}
         </CollectorSidebarLayout>
     );
 }

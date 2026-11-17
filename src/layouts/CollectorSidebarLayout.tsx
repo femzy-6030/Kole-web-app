@@ -19,9 +19,36 @@ import {
   ShieldCheck,
   CheckCircle2,
   LifeBuoy,
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  Camera,
+  Banknote,
+  Receipt,
+  Shield,
+  Layers,
+  HelpCircle,
+  FileText,
 } from 'lucide-react';
 
-export type CollectorNavSection = 'requests' | 'ledger' | 'zones' | 'profiles' | 'assistances';
+export type CollectorNavSection = 'requests' | 'ledger' | 'zones' | 'profiles' | 'assistances' | string;
+
+export interface SubModuleItem {
+  key: string;
+  label: string;
+  path: string;
+  badge?: string | number | null;
+}
+
+export interface NavCategoryItem {
+  key: string;
+  label: string;
+  icon: any;
+  defaultPath: string;
+  badge?: string | number | null;
+  subModules: SubModuleItem[];
+}
 
 interface CollectorSidebarLayoutProps {
   activeSection?: CollectorNavSection | string;
@@ -58,44 +85,132 @@ export default function CollectorSidebarLayout({
     activeCollector.cluster ||
     `${activeCollector.Area || 'Oke-Fia'} Zone`;
 
-  // Enterprise Sidebar Modules
-  const navItems = [
+  // Enterprise Categorical Sub-modules (Task A)
+  const navCategories: NavCategoryItem[] = [
     {
       key: 'requests',
-      path: '/collector/dashboard',
       label: 'Live Dispatch',
       icon: Truck,
+      defaultPath: '/collector/dashboard',
       badge: '3 Live',
+      subModules: [
+        {
+          key: 'requests',
+          label: 'Active Telemetry',
+          path: '/collector/dashboard',
+          badge: 'Live',
+        },
+        {
+          key: 'requests_verification',
+          label: 'Pickup Photo Verification',
+          path: '/collector/proof-verification',
+        },
+      ],
     },
     {
       key: 'ledger',
-      path: '/collector/ledger',
       label: 'Customer Ledger',
       icon: Users,
+      defaultPath: '/collector/ledger',
       badge: 'Billing',
+      subModules: [
+        {
+          key: 'ledger_invoices',
+          label: 'Billing & Invoices',
+          path: '/collector/ledger',
+        },
+        {
+          key: 'ledger_overrides',
+          label: 'Collector Payment Overrides & Debt Clearance',
+          path: '/collector/ledger/overrides',
+          badge: 'Overrides',
+        },
+        {
+          key: 'ledger_history',
+          label: 'Client Payment History',
+          path: '/collector/ledger/history',
+        },
+      ],
     },
     {
       key: 'zones',
-      path: '/collector/zones',
       label: 'Cluster Zones',
       icon: MapPin,
-      badge: null,
+      defaultPath: '/collector/zones',
+      subModules: [
+        {
+          key: 'zones_maps',
+          label: 'Geofenced Maps',
+          path: '/collector/zones',
+        },
+        {
+          key: 'zones_assignments',
+          label: 'Zone Assignments',
+          path: '/collector/zones/assignments',
+        },
+      ],
     },
     {
       key: 'assistances',
-      path: '/collector/assistances',
       label: 'Support & Assist',
       icon: LifeBuoy,
+      defaultPath: '/collector/assistances',
       badge: (assistanceTickets || []).filter((t: any) => t.status !== 'Resolved').length || null,
+      subModules: [
+        {
+          key: 'assistances_tickets',
+          label: 'Active Tickets',
+          path: '/collector/assistances',
+          badge: (assistanceTickets || []).filter((t: any) => t.status !== 'Resolved').length || null,
+        },
+        {
+          key: 'assistances_disputes',
+          label: 'Dispute Logs',
+          path: '/collector/assistances/disputes',
+        },
+      ],
     },
     {
       key: 'profiles',
-      path: '/collector/profiles',
       label: 'Settings & Fleet',
       icon: Settings,
+      defaultPath: '/collector/profiles',
       badge: 'Verified',
+      subModules: [
+        {
+          key: 'profiles_verification',
+          label: 'Fleet Verification',
+          path: '/collector/profiles',
+        },
+        {
+          key: 'profiles_gateway',
+          label: 'TSA / Paystack Gateway Rules',
+          path: '/collector/profiles/gateway-rules',
+        },
+      ],
     },
   ];
+
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {
+      requests: true,
+      ledger: true,
+      zones: false,
+      assistances: false,
+      profiles: false,
+    };
+    if (activeSection.startsWith('zones')) initial.zones = true;
+    if (activeSection.startsWith('assistances')) initial.assistances = true;
+    if (activeSection.startsWith('profiles')) initial.profiles = true;
+    return initial;
+  });
+
+  const toggleCategory = (catKey: string, defaultPath: string) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [catKey]: !prev[catKey],
+    }));
+  };
 
   const handleNavClick = (key: string, path: string) => {
     if (onNavigate) {
@@ -199,36 +314,83 @@ export default function CollectorSidebarLayout({
               Management Modules
             </p>
 
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeSection === item.key;
+            {navCategories.map((cat) => {
+              const Icon = cat.icon;
+              const isCategoryActive =
+                activeSection === cat.key ||
+                activeSection.startsWith(cat.key) ||
+                cat.subModules.some((s) => s.key === activeSection);
+              const isExpanded = !!expandedCategories[cat.key];
 
               return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => handleNavClick(item.key, item.path)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/40'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
-                    <span>{item.label}</span>
+                <div key={cat.key} className="space-y-1">
+                  {/* Category Header Row (Expand/Collapse) */}
+                  <div
+                    onClick={() => toggleCategory(cat.key, cat.defaultPath)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl font-bold transition-all cursor-pointer select-none group ${
+                      isCategoryActive
+                        ? 'bg-slate-800 text-white'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon
+                        size={16}
+                        className={isCategoryActive ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-200'}
+                      />
+                      <span className="text-xs font-bold">{cat.label}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {cat.badge && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-slate-950 text-slate-400">
+                          {cat.badge}
+                        </span>
+                      )}
+                      <ChevronDown
+                        size={13}
+                        className={`text-slate-400 transition-transform duration-200 ${
+                          isExpanded ? 'rotate-180 text-emerald-400' : ''
+                        }`}
+                      />
+                    </div>
                   </div>
 
-                  {item.badge && (
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-md font-black ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
+                  {/* Sub-modules Indented List */}
+                  {isExpanded && (
+                    <div className="pl-3.5 pr-1 py-0.5 space-y-0.5 border-l border-slate-800 ml-4 animate-in fade-in duration-150">
+                      {cat.subModules.map((sub) => {
+                        const isSubActive =
+                          activeSection === sub.key ||
+                          (activeSection === cat.key && sub.key === cat.subModules[0].key);
+
+                        return (
+                          <button
+                            key={sub.key}
+                            type="button"
+                            onClick={() => handleNavClick(sub.key, sub.path)}
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer text-left ${
+                              isSubActive
+                                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                            }`}
+                          >
+                            <span className="truncate">{sub.label}</span>
+                            {sub.badge && (
+                              <span
+                                className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
+                                  isSubActive ? 'bg-white/20 text-white font-bold' : 'bg-slate-800 text-slate-400'
+                                }`}
+                              >
+                                {sub.badge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
-                </button>
+                </div>
               );
             })}
 
@@ -368,31 +530,83 @@ export default function CollectorSidebarLayout({
 
               {/* Navigation Items in Drawer */}
               <nav className="space-y-1.5 text-xs">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeSection === item.key;
+                {navCategories.map((cat) => {
+                  const Icon = cat.icon;
+                  const isCategoryActive =
+                    activeSection === cat.key ||
+                    activeSection.startsWith(cat.key) ||
+                    cat.subModules.some((s) => s.key === activeSection);
+                  const isExpanded = !!expandedCategories[cat.key];
 
                   return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => handleNavClick(item.key, item.path)}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold transition-all ${
-                        isActive
-                          ? 'bg-emerald-600 text-white shadow-md'
-                          : 'text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
-                        <span>{item.label}</span>
+                    <div key={cat.key} className="space-y-1">
+                      {/* Category Header Row (Expand/Collapse) */}
+                      <div
+                        onClick={() => toggleCategory(cat.key, cat.defaultPath)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl font-bold transition-all cursor-pointer ${
+                          isCategoryActive
+                            ? 'bg-slate-800 text-white'
+                            : 'text-slate-300 hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Icon
+                            size={16}
+                            className={isCategoryActive ? 'text-emerald-400' : 'text-slate-400'}
+                          />
+                          <span className="text-xs font-bold">{cat.label}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          {cat.badge && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-slate-950 text-slate-400">
+                              {cat.badge}
+                            </span>
+                          )}
+                          <ChevronDown
+                            size={13}
+                            className={`text-slate-400 transition-transform duration-200 ${
+                              isExpanded ? 'rotate-180 text-emerald-400' : ''
+                            }`}
+                          />
+                        </div>
                       </div>
-                      {item.badge && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300">
-                          {item.badge}
-                        </span>
+
+                      {/* Sub-modules Indented List */}
+                      {isExpanded && (
+                        <div className="pl-3.5 pr-1 py-0.5 space-y-0.5 border-l border-slate-800 ml-4 animate-in fade-in duration-150">
+                          {cat.subModules.map((sub) => {
+                            const isSubActive =
+                              activeSection === sub.key ||
+                              (activeSection === cat.key && sub.key === cat.subModules[0].key);
+
+                            return (
+                              <button
+                                key={sub.key}
+                                type="button"
+                                onClick={() => handleNavClick(sub.key, sub.path)}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer text-left ${
+                                  isSubActive
+                                    ? 'bg-emerald-600 text-white shadow-md'
+                                    : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                                }`}
+                              >
+                                <span className="truncate">{sub.label}</span>
+                                {sub.badge && (
+                                  <span
+                                    className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
+                                      isSubActive ? 'bg-white/20 text-white font-bold' : 'bg-slate-800 text-slate-400'
+                                    }`}
+                                  >
+                                    {sub.badge}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
 
@@ -458,7 +672,15 @@ export default function CollectorSidebarLayout({
               <span className="text-emerald-400">{assignedClusterName} Hub</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white capitalize">
-              {navItems.find((n) => n.key === activeSection)?.label || 'Operations Bay'}
+              {(() => {
+                for (const cat of navCategories) {
+                  if (cat.key === activeSection) return cat.label;
+                  for (const sub of cat.subModules) {
+                    if (sub.key === activeSection) return sub.label;
+                  }
+                }
+                return 'Operations Bay';
+              })()}
             </h2>
           </div>
 

@@ -3,8 +3,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useClusterStore } from '../../store/useClusterStore';
+import { useBillingStore } from '../../store/useBillingStore';
 import AddCustomerModal, { HouseholdCustomer } from './AddCustomerModal';
+import ProcessPaymentModal from './ProcessPaymentModal';
 import { OSOGBO_CLUSTERS } from '../../utils/zoneValidator';
+import type { PaymentRecord } from '../../types/billing';
 import {
   Users,
   Search,
@@ -27,6 +30,10 @@ import {
   DollarSign,
   TrendingDown,
   TrendingUp,
+  Banknote,
+  Receipt,
+  ShieldCheck,
+  History,
 } from 'lucide-react';
 
 // Seeded realistic Osogbo household clients for immediate ledger functionality
@@ -220,9 +227,25 @@ export const exportLedgerToCSV = (
   URL.revokeObjectURL(url);
 };
 
-export default function CollectorCustomerLedger() {
+interface CollectorCustomerLedgerProps {
+  initialSubModule?: 'invoices' | 'overrides' | 'history' | string;
+}
+
+export default function CollectorCustomerLedger({
+  initialSubModule = 'invoices',
+}: CollectorCustomerLedgerProps) {
   const { user } = useAuthStore();
   const { registeredCollectors } = useClusterStore();
+  const { payments } = useBillingStore();
+
+  const [activeSubModule, setActiveSubModule] = useState<'invoices' | 'overrides' | 'history'>(() => {
+    if (initialSubModule.includes('override') || initialSubModule.includes('debt')) return 'overrides';
+    if (initialSubModule.includes('history')) return 'history';
+    return 'invoices';
+  });
+
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedCustomerForPayment, setSelectedCustomerForPayment] = useState<HouseholdCustomer | null>(null);
 
   const activeCollector =
     (registeredCollectors && registeredCollectors[0]) ||
@@ -467,6 +490,67 @@ export default function CollectorCustomerLedger() {
       )}
 
       {/* ============================================================ */}
+      {/* SUB-MODULE CATEGORY TABS (Sidebar Sub-module Sync)           */}
+      {/* ============================================================ */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3 text-xs">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveSubModule('invoices');
+            setSelectedStatusTab('ALL');
+          }}
+          className={`py-2 px-3.5 rounded-xl font-bold flex items-center gap-2 transition-all cursor-pointer ${
+            activeSubModule === 'invoices'
+              ? 'bg-emerald-600 text-white shadow-md'
+              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+          }`}
+        >
+          <Users size={14} />
+          <span>Billing & Invoices</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-white/20 text-white font-bold">
+            {customers.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveSubModule('overrides');
+            setSelectedStatusTab('DEBTOR');
+          }}
+          className={`py-2 px-3.5 rounded-xl font-bold flex items-center gap-2 transition-all cursor-pointer ${
+            activeSubModule === 'overrides'
+              ? 'bg-emerald-600 text-white shadow-md'
+              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+          }`}
+        >
+          <Banknote size={14} />
+          <span>Collector Payment Overrides & Debt Clearance</span>
+          {metrics.debtorCount > 0 && (
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-rose-500/20 text-rose-300 font-bold">
+              {metrics.debtorCount} Overdue
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubModule('history')}
+          className={`py-2 px-3.5 rounded-xl font-bold flex items-center gap-2 transition-all cursor-pointer ${
+            activeSubModule === 'history'
+              ? 'bg-emerald-600 text-white shadow-md'
+              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+          }`}
+        >
+          <History size={14} />
+          <span>Client Payment History</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-slate-800 text-slate-300 font-bold">
+            {payments.length}
+          </span>
+        </button>
+      </div>
+
+      {/* ============================================================ */}
       {/* 4 SUMMARY METRIC CARDS                                       */}
       {/* ============================================================ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -614,9 +698,98 @@ export default function CollectorCustomerLedger() {
       </div>
 
       {/* ============================================================ */}
-      {/* CUSTOMER LEDGER TABLE & ROWS                                 */}
+      {/* VIEW CONDITIONAL: PAYMENT HISTORY vs CUSTOMER LEDGER TABLE   */}
       {/* ============================================================ */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      {activeSubModule === 'history' ? (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+          <div className="p-4 bg-slate-950/80 border-b border-slate-800 flex justify-between items-center">
+            <div>
+              <h3 className="text-sm font-black text-white flex items-center gap-2">
+                <Receipt size={16} className="text-emerald-400" />
+                <span>Electronic Payment Audit Receipts</span>
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Live audit trail of collector cash overrides and client Paystack digital settlements.
+              </p>
+            </div>
+            <span className="text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-500/20">
+              {payments.length} Transactions Recorded
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-300 border-collapse">
+              <thead>
+                <tr className="bg-slate-950/40 border-b border-slate-800 text-slate-400 text-[10px] uppercase font-black tracking-wider">
+                  <th className="py-3 px-4">Receipt Ref</th>
+                  <th className="py-3 px-4">Client / Code</th>
+                  <th className="py-3 px-4">Channel</th>
+                  <th className="py-3 px-4">Type</th>
+                  <th className="py-3 px-4">Amount Paid</th>
+                  <th className="py-3 px-4">Target Period</th>
+                  <th className="py-3 px-4">Date Recorded</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 font-medium">
+                {payments.length > 0 ? (
+                  payments.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-4 font-mono font-bold text-emerald-400">
+                        {p.receipt_number}
+                      </td>
+                      <td className="py-3 px-4">
+                        <p className="font-bold text-white text-xs">{p.client_name || p.customer_code}</p>
+                        <span className="font-mono text-[10px] text-slate-400">{p.customer_code}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${
+                            p.payment_method === 'cash_collector'
+                              ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+                              : 'bg-sky-500/10 text-sky-300 border border-sky-500/20'
+                          }`}
+                        >
+                          {p.payment_method === 'cash_collector' ? <Banknote size={11} /> : <CreditCard size={11} />}
+                          <span>{p.payment_method === 'cash_collector' ? 'Cash Override' : 'Paystack Online'}</span>
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 uppercase text-[10px] font-bold text-slate-300">
+                        {p.payment_type.replace('_', ' ')}
+                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-white">
+                        ₦{p.amount_paid.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-wrap gap-1">
+                          {p.target_months.map((m) => (
+                            <span
+                              key={m}
+                              className="px-1.5 py-0.2 bg-slate-800 text-slate-300 rounded font-mono text-[9px]"
+                            >
+                              {new Date(m).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-slate-400 text-[11px]">
+                        {new Date(p.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-500">
+                      No payment receipts found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        /* CUSTOMER LEDGER TABLE & ROWS */
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300 border-collapse">
             <thead>
@@ -716,18 +889,32 @@ export default function CollectorCustomerLedger() {
                         )}
                       </td>
 
-                      {/* Action Buttons: WhatsApp Nudge & Mark Paid */}
+                      {/* Action Buttons: Process Payment, WhatsApp Nudge & Mark Paid */}
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Process Payment Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCustomerForPayment(c);
+                              setIsPaymentModalOpen(true);
+                            }}
+                            className="py-1.5 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                            title="Process in-person cash payment, clear overdue debt, or log advance payment"
+                          >
+                            <Banknote size={13} />
+                            <span>Process Payment</span>
+                          </button>
+
                           {/* Direct WhatsApp Nudge Button */}
                           <button
                             type="button"
                             onClick={() => handleSendWhatsAppNudge(c)}
-                            className="py-1.5 px-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-xl font-bold text-xs flex items-center gap-1.5 border border-emerald-500/20 transition-all cursor-pointer"
+                            className="py-1.5 px-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-xl font-bold text-xs flex items-center gap-1 border border-emerald-500/20 transition-all cursor-pointer"
                             title="Send pre-filled WhatsApp billing nudge with your bank details"
                           >
                             <MessageSquare size={13} className="text-emerald-400" />
-                            <span className="hidden sm:inline">WhatsApp Nudge</span>
+                            <span className="hidden sm:inline">WhatsApp</span>
                           </button>
 
                           {/* Quick Mark Paid Action for Debtors */}
@@ -735,10 +922,10 @@ export default function CollectorCustomerLedger() {
                             <button
                               type="button"
                               onClick={() => handleMarkPaid(c)}
-                              className="py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl font-bold text-xs transition-colors cursor-pointer border border-slate-700"
+                              className="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl font-bold text-xs transition-colors cursor-pointer border border-slate-700"
                               title="Mark account paid and up to date"
                             >
-                              Clear Due
+                              Clear
                             </button>
                           )}
                         </div>
@@ -770,6 +957,7 @@ export default function CollectorCustomerLedger() {
           <span className="text-slate-500">KóLẹ̀ Municipal Operations • Osogbo Hub</span>
         </div>
       </div>
+      )}
 
       {/* ============================================================ */}
       {/* ONBOARDING MODAL COMPONENT                                   */}
@@ -779,6 +967,30 @@ export default function CollectorCustomerLedger() {
         onClose={() => setIsOnboardModalOpen(false)}
         onCustomerAdded={handleCustomerAdded}
         defaultCluster={activeCollector.cluster || `${activeCollector.Area || 'Oke-Fia'} Zone`}
+      />
+
+      {/* ============================================================ */}
+      {/* PROCESS PAYMENT OVERRIDE MODAL                               */}
+      {/* ============================================================ */}
+      <ProcessPaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => {
+          setIsPaymentModalOpen(false);
+          setSelectedCustomerForPayment(null);
+        }}
+        customer={selectedCustomerForPayment}
+        onPaymentSuccess={(receipt) => {
+          // Re-sync local state from localStorage
+          try {
+            const raw = localStorage.getItem('kole-households-ledger');
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) setCustomers(parsed);
+            }
+          } catch {}
+          setActionSuccessMessage(`Recorded payment for ${selectedCustomerForPayment?.full_name}! Generated receipt ${receipt.receipt_number}.`);
+          setTimeout(() => setActionSuccessMessage(null), 4000);
+        }}
       />
     </div>
   );
