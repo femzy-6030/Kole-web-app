@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from './store/useAuthStore';
 import CustomerHome from './pages/customer/CustomerHome';
+import ClientDashboard from './pages/customer/ClientDashboard';
+import ClientLogin from './pages/auth/ClientLogin';
+import ChangePasswordModal from './components/auth/ChangePasswordModal';
 import PaymentPage from './components/PaymentPage';
 import PaymentCheckoutView from './components/customer/PaymentCheckoutView';
 import ProfileView from './components/customer/ProfileView';
@@ -46,7 +49,7 @@ import {
 // MAIN APP ENTRY POINT
 // ==========================================
 export default function App() {
-    const { isAuthenticated, role, login } = useAuthStore();
+    const { isAuthenticated, role, user, isTemporaryPassword, login, logout } = useAuthStore();
 
     // URL Query & Hash listener for Admin Route (?admin=true, #admin, /admin, /admin/dashboard)
     const checkIsAdminRoute = () => {
@@ -113,8 +116,24 @@ export default function App() {
         );
     };
 
+    const checkIsLoginRoute = () => {
+        if (typeof window === 'undefined') return false;
+        const path = window.location.pathname.toLowerCase();
+        const hash = window.location.hash.toLowerCase();
+        return path === '/login' || hash === '#login';
+    };
+
+    const checkIsChangePasswordRoute = () => {
+        if (typeof window === 'undefined') return false;
+        const path = window.location.pathname.toLowerCase();
+        const hash = window.location.hash.toLowerCase();
+        return path.startsWith('/change-password') || hash.startsWith('#change-password');
+    };
+
     const [isCollectorRoute, setIsCollectorRoute] = useState(checkIsCollectorRoute);
     const [isOrgSignupRoute, setIsOrgSignupRoute] = useState(checkIsOrgSignupRoute);
+    const [isLoginRoute, setIsLoginRoute] = useState(checkIsLoginRoute);
+    const [isChangePasswordRoute, setIsChangePasswordRoute] = useState(checkIsChangePasswordRoute);
 
     // Check both localStorage and sessionStorage on mount for Collector & General Session Persistence
     useEffect(() => {
@@ -153,6 +172,8 @@ export default function App() {
             setIsCollectorRoute(isCol);
             const isOrg = checkIsOrgSignupRoute();
             setIsOrgSignupRoute(isOrg);
+            setIsLoginRoute(checkIsLoginRoute());
+            setIsChangePasswordRoute(checkIsChangePasswordRoute());
 
             if (isOrg) {
                 setAuthMode('org-signup');
@@ -160,6 +181,8 @@ export default function App() {
                 setAuthMode('update-password');
             } else if (checkIsCollectorOnboardRoute()) {
                 setAuthMode('collector-onboard');
+            } else if (checkIsChangePasswordRoute()) {
+                setAuthMode('change-password');
             } else if (isCol && authMode === 'collector-onboard' && !window.location.pathname.includes('/collector-onboard')) {
                 setAuthMode('login');
             }
@@ -456,6 +479,49 @@ export default function App() {
             );
         }
 
+        // 0A. MANDATORY TEMPORARY PASSWORD BLOCK
+        // If user is authenticated and is_temporary_password is true, block access to any dashboard until changed!
+        if (isAuthenticated && (isTemporaryPassword || user?.is_temporary_password)) {
+            return (
+                <div className="flex-1 flex items-center justify-center p-4">
+                    <ChangePasswordModal
+                        isOpen={true}
+                        userPhone={user?.phone_number || user?.phoneNumber}
+                        isMandatory={true}
+                        onSuccess={() => {
+                            if (typeof window !== 'undefined') {
+                                window.history.pushState({}, '', '/dashboard');
+                                window.dispatchEvent(new Event('popstate'));
+                            }
+                        }}
+                    />
+                </div>
+            );
+        }
+
+        // 0B. DEDICATED /change-password ROUTE
+        if (isChangePasswordRoute || authMode === 'change-password') {
+            if (isAuthenticated) {
+                return (
+                    <div className="flex-1 flex items-center justify-center p-4">
+                        <ChangePasswordModal
+                            isOpen={true}
+                            userPhone={user?.phone_number || user?.phoneNumber}
+                            isMandatory={Boolean(isTemporaryPassword || user?.is_temporary_password)}
+                            onSuccess={() => {
+                                setIsChangePasswordRoute(false);
+                                setAuthMode('login');
+                                if (typeof window !== 'undefined') {
+                                    window.history.pushState({}, '', '/dashboard');
+                                    window.dispatchEvent(new Event('popstate'));
+                                }
+                            }}
+                        />
+                    </div>
+                );
+            }
+        }
+
         // 1. DEDICATED COLLECTOR LOGIN VIEW (Isolated at /collector or /collector/login)
         if (!isAuthenticated && isCollectorRoute && authMode !== 'collector-onboard') {
             return (
@@ -695,7 +761,39 @@ export default function App() {
             );
         }
 
-        // 3. PUBLIC AUTHENTICATION / REGISTRATION VIEW (Strictly Customer & Org)
+        // 3A. PUBLIC AUTHENTICATION: DEDICATED CLIENT LOGIN VIEW (Phone-Number + Temporary Password Flow)
+        if (!isAuthenticated && (isLoginRoute || (authMode === 'login' && selectedRole === 'customer'))) {
+            return (
+                <ClientLogin
+                    onLoginSuccess={(isTemp) => {
+                        if (!isTemp) {
+                            setCustomerActiveTab('home');
+                            if (typeof window !== 'undefined') {
+                                window.history.pushState({}, '', '/dashboard');
+                            }
+                        }
+                    }}
+                    onSwitchToRegister={() => {
+                        setSelectedRole('customer');
+                        setAuthMode('register');
+                        setIsLoginRoute(false);
+                    }}
+                    onNavigateToCollector={() => {
+                        setIsCollectorRoute(true);
+                        if (typeof window !== 'undefined') {
+                            window.history.pushState({}, '', '/collector');
+                            window.dispatchEvent(new Event('popstate'));
+                        }
+                    }}
+                    onSwitchRole={(newRole) => {
+                        setSelectedRole(newRole);
+                    }}
+                    currentRole={selectedRole}
+                />
+            );
+        }
+
+        // 3B. PUBLIC REGISTRATION & ORGANIZATION VIEW
         if (!isAuthenticated) {
             return (
                 <div className="flex-1 flex items-center justify-center py-8">
@@ -1175,7 +1273,7 @@ export default function App() {
                 )}
 
                 {customerActiveTab === 'home' && (
-                    <CustomerHome onNavigateToCheckout={(data) => { setCheckoutData(data); setCustomerActiveTab('checkout'); }} />
+                    <ClientDashboard onNavigateToCheckout={(data) => { setCheckoutData(data); setCustomerActiveTab('checkout'); }} />
                 )}
 
                 {customerActiveTab === 'checkout' && (

@@ -35,6 +35,7 @@ export const useAuthStore = create(
             refreshToken: null,
             tokens: null,
             subscription: null,
+            isTemporaryPassword: false,
 
             // Active Requests State (Phase 2 Dispatch Pipeline) - Clean Slate
             activeRequests: [],
@@ -55,6 +56,8 @@ export const useAuthStore = create(
                     impact_score: typeof userData.impact_score === 'number' ? userData.impact_score : 0,
                 } : null;
 
+                const isTemp = Boolean(userData?.is_temporary_password ?? userData?.isTemporaryPassword ?? false);
+
                 set({
                     user: cleanUser,
                     role: role,
@@ -63,7 +66,15 @@ export const useAuthStore = create(
                     accessToken: access,
                     refreshToken: refresh,
                     tokens: access ? { access, refresh } : null,
+                    isTemporaryPassword: isTemp,
                 });
+            },
+
+            setTemporaryPassword: (isTemp) => {
+                set((state) => ({
+                    isTemporaryPassword: Boolean(isTemp),
+                    user: state.user ? { ...state.user, is_temporary_password: Boolean(isTemp) } : null,
+                }));
             },
 
             setTokens: (tokens) => {
@@ -114,6 +125,7 @@ export const useAuthStore = create(
                     refreshToken: null,
                     tokens: null,
                     subscription: null,
+                    isTemporaryPassword: false,
                     activeRequests: []
                 });
             },
@@ -156,6 +168,7 @@ export const useAuthStore = create(
                     : null;
                 return {
                     ...persistedState,
+                    isTemporaryPassword: Boolean(persistedState.isTemporaryPassword ?? persistedState.user?.is_temporary_password ?? false),
                     activeRequests,
                     user,
                 };
